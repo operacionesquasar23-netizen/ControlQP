@@ -1,7 +1,9 @@
 // app/layout.tsx
 //
-// Layout raíz mínimo. Sin librerías de UI externas para mantener
-// el piloto liviano — todo el estilo va inline en cada página por ahora.
+// Layout raíz. Importa Tailwind globalmente (igual estilo visual
+// que gestion-pdl) y define metadata básica del sitio.
+
+import './globals.css';
 
 export const metadata = {
   title: 'Gestión QP — Control de inventario',
@@ -11,9 +13,7 @@ export const metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
-      <body style={{ margin: 0, fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

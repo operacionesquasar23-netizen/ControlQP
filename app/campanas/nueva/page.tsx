@@ -9,6 +9,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { crearCampaña, obtenerCategorias, type Lugar, type Producto } from '@/lib/api';
 
 const CATEGORIAS_BASE = ['Uniformes', 'Elementos POP', 'Merchandising', 'Canjes', 'Perecibles'];
@@ -133,346 +134,242 @@ export default function NuevaCampañaPage() {
   }
 
   return (
-    <main style={{ maxWidth: 720, margin: '0 auto', padding: '2rem 1rem' }}>
-      <h1 style={{ fontSize: 22, fontWeight: 500, marginBottom: 4 }}>Nueva campaña</h1>
-      <p style={{ fontSize: 14, color: '#6b6b6b', marginBottom: 24 }}>
-        Registra los datos generales, los lugares de implementación y los productos que se usarán.
-      </p>
+    <div className="min-h-screen bg-slate-50">
 
-      {errores.length > 0 && (
-        <div style={cajaErrorStyle}>
-          <ul style={{ margin: 0, paddingLeft: 18 }}>
-            {errores.map((e, i) => (
-              <li key={i} style={{ fontSize: 13 }}>{e}</li>
+      {/* Header */}
+      <div className="bg-brand text-white px-6 py-5">
+        <div className="max-w-3xl mx-auto flex items-center gap-3">
+          <Link href="/" className="text-white/80 hover:text-white text-sm">← Inicio</Link>
+        </div>
+      </div>
+
+      <main className="max-w-3xl mx-auto px-4 py-8">
+        <h1 className="text-2xl font-bold text-gray-900 mb-1">Nueva campaña</h1>
+        <p className="text-sm text-gray-500 mb-6">
+          Registra los datos generales, los lugares de implementación y los productos que se usarán.
+        </p>
+
+        {errores.length > 0 && (
+          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-5 text-red-800">
+            <ul className="list-disc pl-5 space-y-0.5">
+              {errores.map((e, i) => (
+                <li key={i} className="text-sm">{e}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <form onSubmit={manejarSubmit}>
+          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-4">
+            <p className="text-sm font-semibold text-gray-900 mb-4">Datos generales</p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+              <Campo label="Código de campaña">
+                <input
+                  type="text"
+                  placeholder="QP-YIC-0001"
+                  value={codigo}
+                  onChange={(e) => setCodigo(e.target.value.toUpperCase())}
+                  className="w-full h-9 rounded-lg border border-gray-200 px-3 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </Campo>
+              <Campo label="Cliente">
+                <input
+                  type="text"
+                  placeholder="Yichang"
+                  value={cliente}
+                  onChange={(e) => setCliente(e.target.value)}
+                  className="w-full h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </Campo>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+              <Campo label="Marca">
+                <input
+                  type="text"
+                  placeholder="Pantene"
+                  value={marca}
+                  onChange={(e) => setMarca(e.target.value)}
+                  className="w-full h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </Campo>
+              <Campo label="Ejecutivo">
+                <input
+                  type="text"
+                  placeholder="Paul Najarro"
+                  value={ejecutivo}
+                  onChange={(e) => setEjecutivo(e.target.value)}
+                  className="w-full h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </Campo>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <Campo label="Fecha inicio">
+                <input
+                  type="date"
+                  value={fechaInicio}
+                  onChange={(e) => setFechaInicio(e.target.value)}
+                  className="w-full h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </Campo>
+              <Campo label="Fecha fin">
+                <input
+                  type="date"
+                  value={fechaFin}
+                  onChange={(e) => setFechaFin(e.target.value)}
+                  className="w-full h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </Campo>
+            </div>
+          </section>
+
+          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-4">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm font-semibold text-gray-900">Lugares de implementación</p>
+              <button
+                type="button"
+                onClick={() => setLugares((prev) => [...prev, filaLugarVacia()])}
+                className="text-xs font-semibold text-blue-700 hover:text-blue-800 border border-blue-200 rounded-lg px-3 py-1.5 transition-colors"
+              >
+                + Agregar lugar
+              </button>
+            </div>
+
+            {lugares.map((lugar, i) => (
+              <div key={i} className="grid grid-cols-[3fr_1fr_auto] gap-2 mb-2 items-center">
+                <input
+                  type="text"
+                  placeholder="Tienda Real Plaza Salaverry"
+                  value={lugar.nombre_lugar}
+                  onChange={(e) => actualizarLugar(i, { nombre_lugar: e.target.value })}
+                  className="w-full h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <select
+                  value={lugar.zona}
+                  onChange={(e) => actualizarLugar(i, { zona: e.target.value as Lugar['zona'] })}
+                  className="w-full h-9 rounded-lg border border-gray-200 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="Lima">Lima</option>
+                  <option value="Provincia">Provincia</option>
+                </select>
+                <button
+                  type="button"
+                  aria-label="Eliminar lugar"
+                  onClick={() => setLugares((prev) => prev.filter((_, idx) => idx !== i))}
+                  disabled={lugares.length === 1}
+                  className="w-9 h-9 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
             ))}
-          </ul>
-        </div>
-      )}
+          </section>
 
-      <form onSubmit={manejarSubmit}>
-        <section style={seccionStyle}>
-          <p style={tituloSeccionStyle}>Datos generales</p>
-          <div style={gridDosColStyle}>
-            <Campo label="Código de campaña">
-              <input
-                type="text"
-                placeholder="QP-YIC-0001"
-                value={codigo}
-                onChange={(e) => setCodigo(e.target.value.toUpperCase())}
-                style={{ ...inputStyle, textTransform: 'uppercase' }}
-              />
-            </Campo>
-            <Campo label="Cliente">
-              <input
-                type="text"
-                placeholder="Yichang"
-                value={cliente}
-                onChange={(e) => setCliente(e.target.value)}
-                style={inputStyle}
-              />
-            </Campo>
-          </div>
-          <div style={gridDosColStyle}>
-            <Campo label="Marca">
-              <input
-                type="text"
-                placeholder="Pantene"
-                value={marca}
-                onChange={(e) => setMarca(e.target.value)}
-                style={inputStyle}
-              />
-            </Campo>
-            <Campo label="Ejecutivo">
-              <input
-                type="text"
-                placeholder="Paul Najarro"
-                value={ejecutivo}
-                onChange={(e) => setEjecutivo(e.target.value)}
-                style={inputStyle}
-              />
-            </Campo>
-          </div>
-          <div style={gridDosColStyle}>
-            <Campo label="Fecha inicio">
-              <input
-                type="date"
-                value={fechaInicio}
-                onChange={(e) => setFechaInicio(e.target.value)}
-                style={inputStyle}
-              />
-            </Campo>
-            <Campo label="Fecha fin">
-              <input
-                type="date"
-                value={fechaFin}
-                onChange={(e) => setFechaFin(e.target.value)}
-                style={inputStyle}
-              />
-            </Campo>
-          </div>
-        </section>
+          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-4">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm font-semibold text-gray-900">Productos de la campaña</p>
+              <button
+                type="button"
+                onClick={() => setProductos((prev) => [...prev, filaProductoVacia()])}
+                className="text-xs font-semibold text-blue-700 hover:text-blue-800 border border-blue-200 rounded-lg px-3 py-1.5 transition-colors"
+              >
+                + Agregar producto
+              </button>
+            </div>
 
-        <section style={seccionStyle}>
-          <div style={cabeceraSeccionStyle}>
-            <p style={tituloSeccionStyle}>Lugares de implementación</p>
+            {productos.map((producto, i) => (
+              <div key={i} className="grid grid-cols-[2fr_1fr_1.3fr_auto] gap-2 mb-2 items-center">
+                <input
+                  type="text"
+                  placeholder="Polo institucional talla M"
+                  value={producto.nombre_producto}
+                  onChange={(e) => actualizarProducto(i, { nombre_producto: e.target.value })}
+                  className="w-full h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <input
+                  type="text"
+                  placeholder="unidad"
+                  value={producto.unidad}
+                  onChange={(e) => actualizarProducto(i, { unidad: e.target.value })}
+                  className="w-full h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <select
+                  value={producto.categoria}
+                  onChange={(e) => manejarCategoriaChange(i, e.target.value)}
+                  className="w-full h-9 rounded-lg border border-gray-200 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Selecciona categoría</option>
+                  {categorias.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                  <option value="__nueva">+ Nueva categoría</option>
+                </select>
+                <button
+                  type="button"
+                  aria-label="Eliminar producto"
+                  onClick={() => setProductos((prev) => prev.filter((_, idx) => idx !== i))}
+                  disabled={productos.length === 1}
+                  className="w-9 h-9 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </section>
+
+          <div className="flex justify-end">
             <button
-              type="button"
-              onClick={() => setLugares((prev) => [...prev, filaLugarVacia()])}
-              style={botonSecundarioStyle}
+              type="submit"
+              disabled={enviando}
+              className="bg-blue-700 hover:bg-blue-800 disabled:opacity-60 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors"
             >
-              + Agregar lugar
+              {enviando ? 'Creando…' : 'Crear campaña'}
             </button>
           </div>
+        </form>
 
-          {lugares.map((lugar, i) => (
-            <div key={i} style={filaLugarStyle}>
-              <input
-                type="text"
-                placeholder="Tienda Real Plaza Salaverry"
-                value={lugar.nombre_lugar}
-                onChange={(e) => actualizarLugar(i, { nombre_lugar: e.target.value })}
-                style={inputStyle}
-              />
-              <select
-                value={lugar.zona}
-                onChange={(e) => actualizarLugar(i, { zona: e.target.value as Lugar['zona'] })}
-                style={inputStyle}
-              >
-                <option value="Lima">Lima</option>
-                <option value="Provincia">Provincia</option>
-              </select>
-              <button
-                type="button"
-                aria-label="Eliminar lugar"
-                onClick={() => setLugares((prev) => prev.filter((_, idx) => idx !== i))}
-                style={botonEliminarStyle}
-                disabled={lugares.length === 1}
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-        </section>
-
-        <section style={seccionStyle}>
-          <div style={cabeceraSeccionStyle}>
-            <p style={tituloSeccionStyle}>Productos de la campaña</p>
-            <button
-              type="button"
-              onClick={() => setProductos((prev) => [...prev, filaProductoVacia()])}
-              style={botonSecundarioStyle}
-            >
-              + Agregar producto
-            </button>
-          </div>
-
-          {productos.map((producto, i) => (
-            <div key={i} style={filaProductoStyle}>
-              <input
-                type="text"
-                placeholder="Polo institucional talla M"
-                value={producto.nombre_producto}
-                onChange={(e) => actualizarProducto(i, { nombre_producto: e.target.value })}
-                style={inputStyle}
-              />
-              <input
-                type="text"
-                placeholder="unidad"
-                value={producto.unidad}
-                onChange={(e) => actualizarProducto(i, { unidad: e.target.value })}
-                style={inputStyle}
-              />
-              <select
-                value={producto.categoria}
-                onChange={(e) => manejarCategoriaChange(i, e.target.value)}
-                style={inputStyle}
-              >
-                <option value="">Selecciona categoría</option>
-                {categorias.map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-                <option value="__nueva">+ Nueva categoría</option>
-              </select>
-              <button
-                type="button"
-                aria-label="Eliminar producto"
-                onClick={() => setProductos((prev) => prev.filter((_, idx) => idx !== i))}
-                style={botonEliminarStyle}
-                disabled={productos.length === 1}
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-        </section>
-
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 24 }}>
-          <button type="submit" disabled={enviando} style={botonPrimarioStyle}>
-            {enviando ? 'Creando…' : 'Crear campaña'}
-          </button>
-        </div>
-      </form>
-
-      {mostrarConfirmDuplicado && (
-        <div style={overlayStyle}>
-          <div style={modalStyle}>
-            <p style={{ fontWeight: 500, marginBottom: 8 }}>Código ya existente</p>
-            <p style={{ fontSize: 14, color: '#6b6b6b', marginBottom: 16 }}>
-              Ya existe una campaña con el código <strong>{codigo.toUpperCase()}</strong>. ¿Deseas crear
-              esta de todas formas? (puede ser una sub-campaña relacionada)
-            </p>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <button
-                type="button"
-                onClick={() => setMostrarConfirmDuplicado(false)}
-                style={botonSecundarioStyle}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setMostrarConfirmDuplicado(false);
-                  enviarFormulario(true);
-                }}
-                style={botonPrimarioStyle}
-              >
-                Crear igual
-              </button>
+        {mostrarConfirmDuplicado && (
+          <div className="fixed inset-0 bg-black/45 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-6 max-w-md w-[90%]">
+              <p className="font-semibold text-gray-900 mb-2">Código ya existente</p>
+              <p className="text-sm text-gray-500 mb-4">
+                Ya existe una campaña con el código <strong>{codigo.toUpperCase()}</strong>. ¿Deseas crear
+                esta de todas formas? (puede ser una sub-campaña relacionada)
+              </p>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setMostrarConfirmDuplicado(false)}
+                  className="text-xs font-semibold text-gray-600 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMostrarConfirmDuplicado(false);
+                    enviarFormulario(true);
+                  }}
+                  className="bg-blue-700 hover:bg-blue-800 text-white text-xs font-semibold rounded-lg px-3 py-1.5 transition-colors"
+                >
+                  Crear igual
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </main>
+        )}
+      </main>
+    </div>
   );
 }
 
 function Campo({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label style={labelStyle}>{label}</label>
+      <label className="text-xs text-gray-400 block mb-1">{label}</label>
       {children}
     </div>
   );
 }
-
-// ---- Estilos inline (sin dependencias de CSS externas) ----
-
-const seccionStyle: React.CSSProperties = {
-  border: '0.5px solid #e3e1d8',
-  borderRadius: 12,
-  padding: '1rem 1.25rem',
-  marginBottom: 16,
-};
-
-const cabeceraSeccionStyle: React.CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  marginBottom: 10,
-};
-
-const tituloSeccionStyle: React.CSSProperties = {
-  fontSize: 14,
-  fontWeight: 500,
-  margin: 0,
-};
-
-const gridDosColStyle: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: '1fr 1fr',
-  gap: 12,
-  marginBottom: 10,
-};
-
-const labelStyle: React.CSSProperties = {
-  fontSize: 12,
-  color: '#6b6b6b',
-  display: 'block',
-  marginBottom: 4,
-};
-
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  height: 36,
-  borderRadius: 8,
-  border: '0.5px solid #d3d1c7',
-  padding: '0 10px',
-  fontSize: 14,
-  boxSizing: 'border-box',
-};
-
-const filaLugarStyle: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: '3fr 1fr auto',
-  gap: 8,
-  marginBottom: 8,
-  alignItems: 'center',
-};
-
-const filaProductoStyle: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: '2fr 1fr 1.3fr auto',
-  gap: 8,
-  marginBottom: 8,
-  alignItems: 'center',
-};
-
-const botonSecundarioStyle: React.CSSProperties = {
-  fontSize: 12,
-  padding: '4px 10px',
-  borderRadius: 8,
-  border: '0.5px solid #d3d1c7',
-  background: 'transparent',
-  cursor: 'pointer',
-};
-
-const botonPrimarioStyle: React.CSSProperties = {
-  fontSize: 14,
-  fontWeight: 500,
-  padding: '8px 18px',
-  borderRadius: 8,
-  border: 'none',
-  background: '#0c447c',
-  color: 'white',
-  cursor: 'pointer',
-};
-
-const botonEliminarStyle: React.CSSProperties = {
-  width: 32,
-  height: 32,
-  borderRadius: 8,
-  border: '0.5px solid #d3d1c7',
-  background: 'transparent',
-  cursor: 'pointer',
-};
-
-const cajaErrorStyle: React.CSSProperties = {
-  background: '#fcebeb',
-  border: '0.5px solid #f09595',
-  borderRadius: 8,
-  padding: '10px 14px',
-  marginBottom: 16,
-  color: '#791f1f',
-};
-
-const overlayStyle: React.CSSProperties = {
-  position: 'fixed',
-  top: 0,
-  left: 0,
-  right: 0,
-  bottom: 0,
-  background: 'rgba(0,0,0,0.45)',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  zIndex: 50,
-};
-
-const modalStyle: React.CSSProperties = {
-  background: 'white',
-  borderRadius: 12,
-  padding: '1.5rem',
-  maxWidth: 420,
-  width: '90%',
-};
