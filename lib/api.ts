@@ -120,6 +120,17 @@ export interface CrearFichaIngresoResultado {
   id_ficha: string;
 }
 
+export interface AgregarElementosPayload {
+  codigo_campaña: string;
+  lugares?: Lugar[];
+  productos?: Producto[];
+}
+
+export interface AgregarElementosResultado {
+  lugaresAgregados: number;
+  productosAgregados: number;
+}
+
 // ---- Funciones expuestas ----
 
 export function crearCampaña(payload: NuevaCampañaPayload) {
@@ -140,4 +151,8 @@ export function obtenerCampaña(codigoCampaña: string) {
 
 export function crearFichaIngreso(payload: NuevaFichaIngresoPayload) {
   return postAction<CrearFichaIngresoResultado>('crearFichaIngreso', payload as unknown as Record<string, unknown>);
+}
+
+export function agregarElementosACampaña(payload: AgregarElementosPayload) {
+  return postAction<AgregarElementosResultado>('agregarElementosACampaña', payload as unknown as Record<string, unknown>);
 }
