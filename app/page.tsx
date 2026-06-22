@@ -51,17 +51,18 @@ export default function HomePage() {
             </span>
           </a>
 
-          {/* Ficha de Ingreso — pendiente de construir */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 opacity-60 cursor-not-allowed">
-            <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center text-2xl mb-4">
+          {/* Ficha de Ingreso — activa */}
+          <a href="/fichas-ingreso/nueva"
+            className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all hover:-translate-y-0.5 group">
+            <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center text-2xl mb-4 group-hover:bg-green-100 transition-colors">
               📥
             </div>
             <h3 className="text-base font-semibold text-gray-900 mb-1">Ficha de Ingreso</h3>
             <p className="text-sm text-gray-500 mb-4">Avisa qué productos van a llegar a almacén.</p>
-            <span className="text-xs font-semibold text-gray-400">
-              Próximamente
+            <span className="text-xs font-semibold text-green-700 group-hover:text-green-800">
+              Ir al formulario →
             </span>
-          </div>
+          </a>
 
           {/* SOLPED — pendiente de construir */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 opacity-60 cursor-not-allowed">
@@ -118,6 +119,7 @@ export default function HomePage() {
           <p className="text-xs text-gray-400">© 2026 Quasar · ControlQP</p>
           <div className="flex items-center gap-4">
             <a href="/campanas/nueva" className="text-xs text-gray-400 hover:text-blue-700">Nueva Campaña</a>
+            <a href="/fichas-ingreso/nueva" className="text-xs text-gray-400 hover:text-blue-700">Ficha de Ingreso</a>
           </div>
         </div>
       </div>

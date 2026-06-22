@@ -90,6 +90,36 @@ export interface CampañaResumen {
   estado: string;
 }
 
+// ---- Tipos del dominio (Paso 2: Ficha de Ingreso) ----
+
+export interface CampañaProducto {
+  codigo_campaña: string;
+  nombre_producto: string;
+  unidad: string;
+  categoria: string;
+}
+
+export interface CampañaCompleta {
+  cabecera: CampañaResumen;
+  lugares: Lugar[];
+  productos: CampañaProducto[];
+}
+
+export interface LineaFichaIngreso {
+  nombre_producto: string;
+  cantidad_esperada: number;
+}
+
+export interface NuevaFichaIngresoPayload {
+  codigo_campaña: string;
+  ejecutivo: string;
+  lineas: LineaFichaIngreso[];
+}
+
+export interface CrearFichaIngresoResultado {
+  id_ficha: string;
+}
+
 // ---- Funciones expuestas ----
 
 export function crearCampaña(payload: NuevaCampañaPayload) {
@@ -102,4 +132,12 @@ export function obtenerCategorias() {
 
 export function listarCampañas() {
   return getAction<CampañaResumen[]>('campanas');
+}
+
+export function obtenerCampaña(codigoCampaña: string) {
+  return getAction<CampañaCompleta>('campaña', { codigo_campaña: codigoCampaña });
+}
+
+export function crearFichaIngreso(payload: NuevaFichaIngresoPayload) {
+  return postAction<CrearFichaIngresoResultado>('crearFichaIngreso', payload as unknown as Record<string, unknown>);
 }
