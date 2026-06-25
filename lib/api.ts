@@ -15,6 +15,20 @@ export interface ApiResponse<T> {
   error?: string;
 }
 
+/**
+ * Formatea una fecha en formato "YYYY-MM-DD" (la que devuelve el
+ * backend, ya normalizada) a "DD/MM/YYYY" para mostrar en pantalla.
+ * Si el valor no tiene el formato esperado, lo devuelve tal cual
+ * en vez de romper la UI.
+ */
+export function formatearFecha(fechaIso: string): string {
+  if (!fechaIso) return '';
+  const partes = fechaIso.slice(0, 10).split('-');
+  if (partes.length !== 3) return fechaIso;
+  const [año, mes, dia] = partes;
+  return `${dia}/${mes}/${año}`;
+}
+
 async function postAction<T>(action: string, payload: Record<string, unknown>): Promise<T> {
   if (!APPS_SCRIPT_URL) {
     throw new Error('Falta configurar NEXT_PUBLIC_APPS_SCRIPT_URL en las variables de entorno.');

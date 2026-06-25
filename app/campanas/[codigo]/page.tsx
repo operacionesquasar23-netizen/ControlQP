@@ -17,6 +17,7 @@ import Link from 'next/link';
 import {
   obtenerCampaña,
   agregarElementosACampaña,
+  formatearFecha,
   type CampañaCompleta,
   type Lugar,
   type Producto,
@@ -174,8 +175,8 @@ export default function DetalleCampañaPage({ params }: { params: { codigo: stri
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div><span className="text-gray-400">Ejecutivo:</span> {campaña.cabecera.ejecutivo}</div>
             <div><span className="text-gray-400">Estado:</span> {campaña.cabecera.estado}</div>
-            <div><span className="text-gray-400">Inicio:</span> {campaña.cabecera.fecha_inicio}</div>
-            <div><span className="text-gray-400">Fin:</span> {campaña.cabecera.fecha_fin}</div>
+            <div><span className="text-gray-400">Inicio:</span> {formatearFecha(campaña.cabecera.fecha_inicio)}</div>
+            <div><span className="text-gray-400">Fin:</span> {formatearFecha(campaña.cabecera.fecha_fin)}</div>
           </div>
         </section>
 

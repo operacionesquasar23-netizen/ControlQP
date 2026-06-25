@@ -8,7 +8,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { listarCampañas, type CampañaResumen } from '@/lib/api';
+import { listarCampañas, formatearFecha, type CampañaResumen } from '@/lib/api';
 
 type FiltroEstado = 'todas' | 'activa' | 'finalizada' | 'cerrada';
 
@@ -116,7 +116,7 @@ export default function ListadoCampañasPage() {
                     {c.codigo_campaña} — {c.cliente}
                   </p>
                   <p className="text-xs text-gray-400 mt-0.5">
-                    {c.marca} · {c.ejecutivo} · {c.fecha_inicio} a {c.fecha_fin}
+                    {c.marca} · {c.ejecutivo} · {formatearFecha(c.fecha_inicio)} a {formatearFecha(c.fecha_fin)}
                   </p>
                 </div>
                 <span
