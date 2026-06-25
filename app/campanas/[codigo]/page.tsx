@@ -151,6 +151,8 @@ export default function DetalleCampañaPage({ params }: { params: { codigo: stri
       <div className="bg-brand text-white px-6 py-5">
         <div className="max-w-3xl mx-auto flex items-center gap-3">
           <Link href="/" className="text-white/80 hover:text-white text-sm">← Inicio</Link>
+          <span className="text-white/40">|</span>
+          <Link href="/campanas" className="text-white/80 hover:text-white text-sm">Todas las campañas</Link>
         </div>
       </div>
 

@@ -38,16 +38,16 @@ export default function HomePage() {
       <div className="max-w-7xl mx-auto px-4 -mt-8 pb-12 w-full">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
 
-          {/* Nueva Campaña — activa */}
-          <a href="/campanas/nueva"
+          {/* Campañas — activa, apunta al listado */}
+          <a href="/campanas"
             className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all hover:-translate-y-0.5 group">
             <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-2xl mb-4 group-hover:bg-blue-100 transition-colors">
               📋
             </div>
-            <h3 className="text-base font-semibold text-gray-900 mb-1">Nueva Campaña</h3>
-            <p className="text-sm text-gray-500 mb-4">Registra una campaña con sus lugares y productos.</p>
+            <h3 className="text-base font-semibold text-gray-900 mb-1">Campañas</h3>
+            <p className="text-sm text-gray-500 mb-4">Crea, busca y edita campañas, lugares y productos.</p>
             <span className="text-xs font-semibold text-blue-700 group-hover:text-blue-800">
-              Ir al formulario →
+              Ver campañas →
             </span>
           </a>
 
@@ -118,7 +118,7 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <p className="text-xs text-gray-400">© 2026 Quasar · ControlQP</p>
           <div className="flex items-center gap-4">
-            <a href="/campanas/nueva" className="text-xs text-gray-400 hover:text-blue-700">Nueva Campaña</a>
+            <a href="/campanas" className="text-xs text-gray-400 hover:text-blue-700">Campañas</a>
             <a href="/fichas-ingreso/nueva" className="text-xs text-gray-400 hover:text-blue-700">Ficha de Ingreso</a>
           </div>
         </div>
