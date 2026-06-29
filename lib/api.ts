@@ -15,6 +15,12 @@ export interface ApiResponse<T> {
   error?: string;
 }
 
+export interface ValidacionEjecutivo {
+  valido: boolean;
+  nombre?: string;
+  codigo?: string;
+}
+
 /**
  * Formatea una fecha en formato "YYYY-MM-DD" (la que devuelve el
  * backend, ya normalizada) a "DD/MM/YYYY" para mostrar en pantalla.
@@ -80,7 +86,7 @@ export interface NuevaCampañaPayload {
   codigo_campaña: string;
   cliente: string;
   marca: string;
-  ejecutivo: string;
+  codigo_ejecutivo: string;
   fecha_inicio: string;
   fecha_fin: string;
   lugares: Lugar[];
@@ -98,6 +104,7 @@ export interface CampañaResumen {
   cliente: string;
   marca: string;
   ejecutivo: string;
+  codigo_ejecutivo: string;
   fecha_inicio: string;
   fecha_fin: string;
   fecha_creacion: string;
@@ -136,6 +143,7 @@ export interface CrearFichaIngresoResultado {
 
 export interface AgregarElementosPayload {
   codigo_campaña: string;
+  codigo_ejecutivo: string;
   lugares?: Lugar[];
   productos?: Producto[];
 }
@@ -155,12 +163,16 @@ export function obtenerCategorias() {
   return getAction<string[]>('categorias');
 }
 
-export function listarCampañas() {
-  return getAction<CampañaResumen[]>('campanas');
+export function listarCampañas(codigoEjecutivo: string) {
+  return getAction<CampañaResumen[]>('campanas', { codigo_ejecutivo: codigoEjecutivo });
 }
 
-export function obtenerCampaña(codigoCampaña: string) {
-  return getAction<CampañaCompleta>('campaña', { codigo_campaña: codigoCampaña });
+export function validarEjecutivo(codigoEjecutivo: string) {
+  return getAction<ValidacionEjecutivo>('validarEjecutivo', { codigo_ejecutivo: codigoEjecutivo });
+}
+
+export function obtenerCampaña(codigoCampaña: string, codigoEjecutivo: string) {
+  return getAction<CampañaCompleta>('campaña', { codigo_campaña: codigoCampaña, codigo_ejecutivo: codigoEjecutivo });
 }
 
 export function crearFichaIngreso(payload: NuevaFichaIngresoPayload) {

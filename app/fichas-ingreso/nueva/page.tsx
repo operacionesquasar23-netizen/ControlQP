@@ -1,23 +1,29 @@
 // app/fichas-ingreso/nueva/page.tsx
 //
 // Paso 2: Ficha de Ingreso.
-// El ejecutivo elige una campaña activa y marca qué productos (de
-// los ya definidos en esa campaña) espera que lleguen a almacén,
-// con su cantidad esperada. Esto es solo el AVISO — la confirmación
-// real de recepción contra guía de remisión es un paso aparte.
+// El ejecutivo elige una de SUS campañas activas y marca qué
+// productos (de los ya definidos en esa campaña) espera que lleguen
+// a almacén, con su cantidad esperada. Esto es solo el AVISO — la
+// confirmación real de recepción contra guía de remisión es un paso
+// aparte.
+//
+// Protegido por código de acceso: el listado de campañas que se
+// puede elegir ya viene filtrado por ejecutivo desde el backend.
 
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   listarCampañas,
   obtenerCampaña,
   crearFichaIngreso,
+  validarEjecutivo,
   type CampañaResumen,
   type CampañaProducto,
 } from '@/lib/api';
+import AccesoEjecutivo from '@/components/AccesoEjecutivo';
 
 interface LineaSeleccionada {
   nombre_producto: string;
@@ -28,11 +34,72 @@ interface LineaSeleccionada {
 }
 
 export default function NuevaFichaIngresoPage() {
-  const router = useRouter();
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+          <p className="text-sm text-gray-400">Cargando…</p>
+        </div>
+      }
+    >
+      <NuevaFichaIngresoContenido />
+    </Suspense>
+  );
+}
 
+function NuevaFichaIngresoContenido() {
+  const searchParams = useSearchParams();
+  const codigoDesdeQuery = searchParams.get('codigo_ejecutivo');
+
+  const [verificandoQuery, setVerificandoQuery] = useState(!!codigoDesdeQuery);
+  const [sesionDesdeQuery, setSesionDesdeQuery] = useState<{ codigo: string; nombre: string } | null>(null);
+
+  useEffect(() => {
+    if (!codigoDesdeQuery) return;
+    validarEjecutivo(codigoDesdeQuery)
+      .then((resultado) => {
+        if (resultado.valido && resultado.nombre && resultado.codigo) {
+          setSesionDesdeQuery({ codigo: resultado.codigo, nombre: resultado.nombre });
+        }
+      })
+      .finally(() => setVerificandoQuery(false));
+  }, [codigoDesdeQuery]);
+
+  if (verificandoQuery) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <p className="text-sm text-gray-400">Verificando acceso…</p>
+      </div>
+    );
+  }
+
+  if (sesionDesdeQuery) {
+    return (
+      <FormularioFichaIngreso codigoEjecutivo={sesionDesdeQuery.codigo} nombreEjecutivo={sesionDesdeQuery.nombre} />
+    );
+  }
+
+  return (
+    <AccesoEjecutivo
+      titulo="Ficha de ingreso"
+      descripcion="Ingresa tu código de acceso para avisar un ingreso a almacén."
+    >
+      {({ codigoEjecutivo, nombreEjecutivo }) => (
+        <FormularioFichaIngreso codigoEjecutivo={codigoEjecutivo} nombreEjecutivo={nombreEjecutivo} />
+      )}
+    </AccesoEjecutivo>
+  );
+}
+
+function FormularioFichaIngreso({
+  codigoEjecutivo,
+  nombreEjecutivo,
+}: {
+  codigoEjecutivo: string;
+  nombreEjecutivo: string;
+}) {
   const [campañas, setCampañas] = useState<CampañaResumen[]>([]);
   const [codigoSeleccionado, setCodigoSeleccionado] = useState('');
-  const [ejecutivo, setEjecutivo] = useState('');
 
   const [productosCampaña, setProductosCampaña] = useState<CampañaProducto[]>([]);
   const [lineas, setLineas] = useState<LineaSeleccionada[]>([]);
@@ -44,7 +111,7 @@ export default function NuevaFichaIngresoPage() {
   const [fichaCreada, setFichaCreada] = useState<string | null>(null);
 
   useEffect(() => {
-    listarCampañas()
+    listarCampañas(codigoEjecutivo)
       .then((camps) => {
         // Solo campañas activas tienen sentido para recibir ingresos.
         setCampañas(camps.filter((c) => c.estado === 'activa'));
@@ -53,7 +120,7 @@ export default function NuevaFichaIngresoPage() {
         setErrores([err instanceof Error ? err.message : 'No se pudieron cargar las campañas.']);
       })
       .finally(() => setCargandoCampañas(false));
-  }, []);
+  }, [codigoEjecutivo]);
 
   useEffect(() => {
     if (!codigoSeleccionado) {
@@ -63,7 +130,7 @@ export default function NuevaFichaIngresoPage() {
     }
 
     setCargandoProductos(true);
-    obtenerCampaña(codigoSeleccionado)
+    obtenerCampaña(codigoSeleccionado, codigoEjecutivo)
       .then((campaña) => {
         setProductosCampaña(campaña.productos);
         setLineas(
@@ -80,7 +147,7 @@ export default function NuevaFichaIngresoPage() {
         setErrores([err instanceof Error ? err.message : 'No se pudo cargar el detalle de la campaña.']);
       })
       .finally(() => setCargandoProductos(false));
-  }, [codigoSeleccionado]);
+  }, [codigoSeleccionado, codigoEjecutivo]);
 
   function actualizarLinea(index: number, cambios: Partial<LineaSeleccionada>) {
     setLineas((prev) => prev.map((l, i) => (i === index ? { ...l, ...cambios } : l)));
@@ -89,7 +156,6 @@ export default function NuevaFichaIngresoPage() {
   function validar(): string[] {
     const errs: string[] = [];
     if (!codigoSeleccionado) errs.push('Debes seleccionar una campaña.');
-    if (!ejecutivo.trim()) errs.push('El ejecutivo es obligatorio.');
 
     const seleccionadas = lineas.filter((l) => l.seleccionado);
     if (seleccionadas.length === 0) {
@@ -116,7 +182,7 @@ export default function NuevaFichaIngresoPage() {
       const seleccionadas = lineas.filter((l) => l.seleccionado);
       const resultado = await crearFichaIngreso({
         codigo_campaña: codigoSeleccionado,
-        ejecutivo: ejecutivo.trim(),
+        ejecutivo: nombreEjecutivo,
         lineas: seleccionadas.map((l) => ({
           nombre_producto: l.nombre_producto,
           cantidad_esperada: Number(l.cantidad_esperada),
@@ -147,7 +213,6 @@ export default function NuevaFichaIngresoPage() {
             onClick={() => {
               setFichaCreada(null);
               setCodigoSeleccionado('');
-              setEjecutivo('');
               setErrores([]);
             }}
             className="inline-block bg-blue-700 hover:bg-blue-800 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors"
@@ -169,15 +234,16 @@ export default function NuevaFichaIngresoPage() {
 
       {/* Header */}
       <div className="bg-brand text-white px-6 py-5">
-        <div className="max-w-3xl mx-auto flex items-center gap-3">
+        <div className="max-w-3xl mx-auto flex items-center justify-between">
           <Link href="/" className="text-white/80 hover:text-white text-sm">← Inicio</Link>
+          <span className="text-white/80 text-sm">{nombreEjecutivo}</span>
         </div>
       </div>
 
       <main className="max-w-3xl mx-auto px-4 py-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-1">Nueva ficha de ingreso</h1>
         <p className="text-sm text-gray-500 mb-6">
-          Avisa qué productos esperas que lleguen a almacén para una campaña activa.
+          Avisa qué productos esperas que lleguen a almacén para una de tus campañas activas.
         </p>
 
         {errores.length > 0 && (
@@ -194,35 +260,26 @@ export default function NuevaFichaIngresoPage() {
           <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-4">
             <p className="text-sm font-semibold text-gray-900 mb-4">Campaña</p>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-gray-400 block mb-1">Selecciona la campaña</label>
-                <select
-                  value={codigoSeleccionado}
-                  onChange={(e) => setCodigoSeleccionado(e.target.value)}
-                  disabled={cargandoCampañas}
-                  className="w-full h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">
-                    {cargandoCampañas ? 'Cargando campañas…' : 'Selecciona una campaña'}
+            <div>
+              <label className="text-xs text-gray-400 block mb-1">Selecciona la campaña</label>
+              <select
+                value={codigoSeleccionado}
+                onChange={(e) => setCodigoSeleccionado(e.target.value)}
+                disabled={cargandoCampañas}
+                className="w-full h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">
+                  {cargandoCampañas ? 'Cargando campañas…' : 'Selecciona una campaña'}
+                </option>
+                {campañas.map((c) => (
+                  <option key={c.codigo_campaña} value={c.codigo_campaña}>
+                    {c.codigo_campaña} — {c.cliente} ({c.marca})
                   </option>
-                  {campañas.map((c) => (
-                    <option key={c.codigo_campaña} value={c.codigo_campaña}>
-                      {c.codigo_campaña} — {c.cliente} ({c.marca})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs text-gray-400 block mb-1">Ejecutivo</label>
-                <input
-                  type="text"
-                  placeholder="Paul Najarro"
-                  value={ejecutivo}
-                  onChange={(e) => setEjecutivo(e.target.value)}
-                  className="w-full h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+                ))}
+              </select>
+              {!cargandoCampañas && campañas.length === 0 && (
+                <p className="text-xs text-gray-400 mt-2">No tienes campañas activas registradas.</p>
+              )}
             </div>
           </section>
 

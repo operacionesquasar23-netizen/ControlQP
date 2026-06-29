@@ -5,6 +5,11 @@
 // productos nuevos (no editar ni eliminar los existentes — eso
 // queda para una iteración futura si hace falta).
 //
+// Protegido por código de acceso: SOLO el ejecutivo dueño de la
+// campaña puede verla o editarla (el backend valida esto en cada
+// llamada, sin excepciones). Si se llega desde el listado, el código
+// ya viene en el query param ?codigo_ejecutivo=... y no se repite.
+//
 // Este es el camino para registrar "elementos de última hora" que
 // no estaban contemplados al crear la campaña: primero se agregan
 // aquí, y luego sí aparecen disponibles para marcarlos en una ficha
@@ -12,16 +17,19 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   obtenerCampaña,
   agregarElementosACampaña,
+  validarEjecutivo,
   formatearFecha,
   type CampañaCompleta,
   type Lugar,
   type Producto,
 } from '@/lib/api';
+import AccesoEjecutivo from '@/components/AccesoEjecutivo';
 
 const CATEGORIAS_BASE = ['Uniformes', 'Elementos POP', 'Merchandising', 'Canjes', 'Perecibles'];
 
@@ -34,8 +42,76 @@ function filaProductoVacia(): Producto {
 }
 
 export default function DetalleCampañaPage({ params }: { params: { codigo: string } }) {
-  const codigo = params.codigo;
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+          <p className="text-sm text-gray-400">Cargando…</p>
+        </div>
+      }
+    >
+      <DetalleCampañaContenido codigo={params.codigo} />
+    </Suspense>
+  );
+}
 
+function DetalleCampañaContenido({ codigo }: { codigo: string }) {
+  const searchParams = useSearchParams();
+  const codigoDesdeQuery = searchParams.get('codigo_ejecutivo');
+
+  const [verificandoQuery, setVerificandoQuery] = useState(!!codigoDesdeQuery);
+  const [sesionDesdeQuery, setSesionDesdeQuery] = useState<{ codigo: string; nombre: string } | null>(null);
+
+  useEffect(() => {
+    if (!codigoDesdeQuery) return;
+    validarEjecutivo(codigoDesdeQuery)
+      .then((resultado) => {
+        if (resultado.valido && resultado.nombre && resultado.codigo) {
+          setSesionDesdeQuery({ codigo: resultado.codigo, nombre: resultado.nombre });
+        }
+      })
+      .finally(() => setVerificandoQuery(false));
+  }, [codigoDesdeQuery]);
+
+  if (verificandoQuery) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <p className="text-sm text-gray-400">Verificando acceso…</p>
+      </div>
+    );
+  }
+
+  if (sesionDesdeQuery) {
+    return (
+      <DetalleCampaña
+        codigo={codigo}
+        codigoEjecutivo={sesionDesdeQuery.codigo}
+        nombreEjecutivo={sesionDesdeQuery.nombre}
+      />
+    );
+  }
+
+  return (
+    <AccesoEjecutivo
+      titulo={codigo}
+      descripcion="Ingresa tu código de acceso para ver esta campaña."
+    >
+      {({ codigoEjecutivo, nombreEjecutivo }) => (
+        <DetalleCampaña codigo={codigo} codigoEjecutivo={codigoEjecutivo} nombreEjecutivo={nombreEjecutivo} />
+      )}
+    </AccesoEjecutivo>
+  );
+}
+
+function DetalleCampaña({
+  codigo,
+  codigoEjecutivo,
+  nombreEjecutivo,
+}: {
+  codigo: string;
+  codigoEjecutivo: string;
+  nombreEjecutivo: string;
+}) {
   const [campaña, setCampaña] = useState<CampañaCompleta | null>(null);
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState<string | null>(null);
@@ -51,7 +127,7 @@ export default function DetalleCampañaPage({ params }: { params: { codigo: stri
 
   function cargarCampaña() {
     setCargando(true);
-    obtenerCampaña(codigo)
+    obtenerCampaña(codigo, codigoEjecutivo)
       .then((c) => {
         if (!c) {
           setErrorCarga('No se encontró ninguna campaña con el código ' + codigo + '.');
@@ -70,7 +146,7 @@ export default function DetalleCampañaPage({ params }: { params: { codigo: stri
   useEffect(() => {
     cargarCampaña();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [codigo]);
+  }, [codigo, codigoEjecutivo]);
 
   function manejarCategoriaChange(index: number, valor: string) {
     if (valor === '__nueva') {
@@ -108,6 +184,7 @@ export default function DetalleCampañaPage({ params }: { params: { codigo: stri
     try {
       const resultado = await agregarElementosACampaña({
         codigo_campaña: codigo,
+        codigo_ejecutivo: codigoEjecutivo,
         lugares: lugaresNuevos.filter((l) => l.nombre_lugar.trim()),
         productos: productosNuevos.filter((p) => p.nombre_producto.trim()),
       });
@@ -150,10 +227,18 @@ export default function DetalleCampañaPage({ params }: { params: { codigo: stri
 
       {/* Header */}
       <div className="bg-brand text-white px-6 py-5">
-        <div className="max-w-3xl mx-auto flex items-center gap-3">
-          <Link href="/" className="text-white/80 hover:text-white text-sm">← Inicio</Link>
-          <span className="text-white/40">|</span>
-          <Link href="/campanas" className="text-white/80 hover:text-white text-sm">Todas las campañas</Link>
+        <div className="max-w-3xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link href="/" className="text-white/80 hover:text-white text-sm">← Inicio</Link>
+            <span className="text-white/40">|</span>
+            <Link
+              href={`/campanas?codigo_ejecutivo=${encodeURIComponent(codigoEjecutivo)}`}
+              className="text-white/80 hover:text-white text-sm"
+            >
+              Todas las campañas
+            </Link>
+          </div>
+          <span className="text-white/80 text-sm">{nombreEjecutivo}</span>
         </div>
       </div>
 
@@ -366,7 +451,7 @@ export default function DetalleCampañaPage({ params }: { params: { codigo: stri
 
         <div className="mt-2">
           <Link
-            href="/fichas-ingreso/nueva"
+            href={`/fichas-ingreso/nueva?codigo_ejecutivo=${encodeURIComponent(codigoEjecutivo)}`}
             className="text-xs text-gray-400 hover:text-blue-700"
           >
             Ir a registrar una ficha de ingreso →

@@ -4,13 +4,19 @@
 // El ejecutivo ingresa los datos generales, define los lugares donde
 // se va a implementar (nombre + zona) y los productos que se usarán
 // (nombre, unidad, categoría). Todo se guarda en una sola operación.
+//
+// Protegido por código de acceso (AccesoEjecutivo). Si se llega desde
+// el listado de campañas, el código ya viene validado en el query
+// param ?codigo_ejecutivo=... y no se vuelve a pedir; si se entra
+// directo a esta URL, se pide aquí.
 
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { crearCampaña, obtenerCategorias, type Lugar, type Producto } from '@/lib/api';
+import { crearCampaña, obtenerCategorias, validarEjecutivo, type Lugar, type Producto } from '@/lib/api';
+import AccesoEjecutivo from '@/components/AccesoEjecutivo';
 
 const CATEGORIAS_BASE = ['Uniformes', 'Elementos POP', 'Merchandising', 'Canjes', 'Perecibles'];
 const CODIGO_REGEX = /^QP-[A-Z]{3}-\d{4}$/;
@@ -24,12 +30,78 @@ function filaProductoVacia(): Producto {
 }
 
 export default function NuevaCampañaPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+          <p className="text-sm text-gray-400">Cargando…</p>
+        </div>
+      }
+    >
+      <NuevaCampañaContenido />
+    </Suspense>
+  );
+}
+
+function NuevaCampañaContenido() {
+  const searchParams = useSearchParams();
+  const codigoDesdeQuery = searchParams.get('codigo_ejecutivo');
+
+  const [verificandoQuery, setVerificandoQuery] = useState(!!codigoDesdeQuery);
+  const [sesionDesdeQuery, setSesionDesdeQuery] = useState<{ codigo: string; nombre: string } | null>(null);
+
+  useEffect(() => {
+    if (!codigoDesdeQuery) return;
+    validarEjecutivo(codigoDesdeQuery)
+      .then((resultado) => {
+        if (resultado.valido && resultado.nombre && resultado.codigo) {
+          setSesionDesdeQuery({ codigo: resultado.codigo, nombre: resultado.nombre });
+        }
+      })
+      .finally(() => setVerificandoQuery(false));
+  }, [codigoDesdeQuery]);
+
+  if (verificandoQuery) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <p className="text-sm text-gray-400">Verificando acceso…</p>
+      </div>
+    );
+  }
+
+  if (sesionDesdeQuery) {
+    return (
+      <FormularioNuevaCampaña
+        codigoEjecutivo={sesionDesdeQuery.codigo}
+        nombreEjecutivo={sesionDesdeQuery.nombre}
+      />
+    );
+  }
+
+  return (
+    <AccesoEjecutivo
+      titulo="Nueva campaña"
+      descripcion="Ingresa tu código de acceso para registrar una campaña."
+    >
+      {({ codigoEjecutivo, nombreEjecutivo }) => (
+        <FormularioNuevaCampaña codigoEjecutivo={codigoEjecutivo} nombreEjecutivo={nombreEjecutivo} />
+      )}
+    </AccesoEjecutivo>
+  );
+}
+
+function FormularioNuevaCampaña({
+  codigoEjecutivo,
+  nombreEjecutivo,
+}: {
+  codigoEjecutivo: string;
+  nombreEjecutivo: string;
+}) {
   const router = useRouter();
 
   const [codigo, setCodigo] = useState('');
   const [cliente, setCliente] = useState('');
   const [marca, setMarca] = useState('');
-  const [ejecutivo, setEjecutivo] = useState('');
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
 
@@ -81,7 +153,6 @@ export default function NuevaCampañaPage() {
     }
     if (!cliente.trim()) errs.push('El cliente es obligatorio.');
     if (!marca.trim()) errs.push('La marca es obligatoria.');
-    if (!ejecutivo.trim()) errs.push('El ejecutivo es obligatorio.');
     if (!fechaInicio) errs.push('La fecha de inicio es obligatoria.');
     if (!fechaFin) errs.push('La fecha de fin es obligatoria.');
 
@@ -104,7 +175,7 @@ export default function NuevaCampañaPage() {
         codigo_campaña: codigo.trim().toUpperCase(),
         cliente: cliente.trim(),
         marca: marca.trim(),
-        ejecutivo: ejecutivo.trim(),
+        codigo_ejecutivo: codigoEjecutivo,
         fecha_inicio: fechaInicio,
         fecha_fin: fechaFin,
         lugares: lugares.filter((l) => l.nombre_lugar.trim()),
@@ -118,7 +189,9 @@ export default function NuevaCampañaPage() {
         return;
       }
 
-      router.push('/campanas/' + codigo.trim().toUpperCase());
+      router.push(
+        '/campanas/' + codigo.trim().toUpperCase() + '?codigo_ejecutivo=' + encodeURIComponent(codigoEjecutivo)
+      );
     } catch (err) {
       setErrores([err instanceof Error ? err.message : 'Error desconocido al crear la campaña.']);
       setEnviando(false);
@@ -138,10 +211,13 @@ export default function NuevaCampañaPage() {
 
       {/* Header */}
       <div className="bg-brand text-white px-6 py-5">
-        <div className="max-w-3xl mx-auto flex items-center gap-3">
-          <Link href="/" className="text-white/80 hover:text-white text-sm">← Inicio</Link>
-          <span className="text-white/40">|</span>
-          <Link href="/campanas" className="text-white/80 hover:text-white text-sm">Todas las campañas</Link>
+        <div className="max-w-3xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link href="/" className="text-white/80 hover:text-white text-sm">← Inicio</Link>
+            <span className="text-white/40">|</span>
+            <Link href="/campanas" className="text-white/80 hover:text-white text-sm">Todas las campañas</Link>
+          </div>
+          <span className="text-white/80 text-sm">{nombreEjecutivo}</span>
         </div>
       </div>
 
@@ -199,10 +275,9 @@ export default function NuevaCampañaPage() {
               <Campo label="Ejecutivo">
                 <input
                   type="text"
-                  placeholder="Paul Najarro"
-                  value={ejecutivo}
-                  onChange={(e) => setEjecutivo(e.target.value)}
-                  className="w-full h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={nombreEjecutivo}
+                  disabled
+                  className="w-full h-9 rounded-lg border border-gray-200 px-3 text-sm bg-gray-50 text-gray-500"
                 />
               </Campo>
             </div>

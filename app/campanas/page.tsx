@@ -3,16 +3,42 @@
 // Listado de campañas. Punto de entrada para que el ejecutivo
 // encuentre cualquier campaña (sin tener que recordar el código
 // exacto) y entre a verla/editarla en /campanas/[codigo].
+//
+// Protegido por código de acceso (AccesoEjecutivo): solo se ven las
+// campañas creadas por el ejecutivo cuyo código se ingresó. El código
+// validado se pasa como query param a las rutas internas para no
+// pedirlo de nuevo en el mismo flujo de clics, sin guardarlo en el
+// navegador (localStorage/cookies).
 
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { listarCampañas, formatearFecha, type CampañaResumen } from '@/lib/api';
+import AccesoEjecutivo from '@/components/AccesoEjecutivo';
 
 type FiltroEstado = 'todas' | 'activa' | 'finalizada' | 'cerrada';
 
 export default function ListadoCampañasPage() {
+  return (
+    <AccesoEjecutivo
+      titulo="Campañas"
+      descripcion="Ingresa tu código de acceso para ver tus campañas."
+    >
+      {({ codigoEjecutivo, nombreEjecutivo }) => (
+        <ListadoCampañas codigoEjecutivo={codigoEjecutivo} nombreEjecutivo={nombreEjecutivo} />
+      )}
+    </AccesoEjecutivo>
+  );
+}
+
+function ListadoCampañas({
+  codigoEjecutivo,
+  nombreEjecutivo,
+}: {
+  codigoEjecutivo: string;
+  nombreEjecutivo: string;
+}) {
   const [campañas, setCampañas] = useState<CampañaResumen[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,11 +47,11 @@ export default function ListadoCampañasPage() {
   const [busqueda, setBusqueda] = useState('');
 
   useEffect(() => {
-    listarCampañas()
+    listarCampañas(codigoEjecutivo)
       .then(setCampañas)
       .catch((err) => setError(err instanceof Error ? err.message : 'No se pudieron cargar las campañas.'))
       .finally(() => setCargando(false));
-  }, []);
+  }, [codigoEjecutivo]);
 
   const estadosDisponibles = useMemo(() => {
     const set = new Set(campañas.map((c) => c.estado));
@@ -49,8 +75,9 @@ export default function ListadoCampañasPage() {
 
       {/* Header */}
       <div className="bg-brand text-white px-6 py-5">
-        <div className="max-w-4xl mx-auto flex items-center gap-3">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
           <Link href="/" className="text-white/80 hover:text-white text-sm">← Inicio</Link>
+          <span className="text-white/80 text-sm">{nombreEjecutivo}</span>
         </div>
       </div>
 
@@ -61,7 +88,7 @@ export default function ListadoCampañasPage() {
             <p className="text-sm text-gray-500">Busca una campaña para ver o editar su detalle.</p>
           </div>
           <Link
-            href="/campanas/nueva"
+            href={`/campanas/nueva?codigo_ejecutivo=${encodeURIComponent(codigoEjecutivo)}`}
             className="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap"
           >
             + Nueva campaña
@@ -107,7 +134,7 @@ export default function ListadoCampañasPage() {
           {campañasFiltradas.map((c) => (
             <Link
               key={c.codigo_campaña}
-              href={`/campanas/${c.codigo_campaña}`}
+              href={`/campanas/${c.codigo_campaña}?codigo_ejecutivo=${encodeURIComponent(codigoEjecutivo)}`}
               className="block bg-white rounded-2xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all hover:-translate-y-0.5"
             >
               <div className="flex items-center justify-between">
