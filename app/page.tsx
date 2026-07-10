@@ -16,6 +16,7 @@ export default function HomePage() {
   const router = useRouter();
 
   const [mostrarModal, setMostrarModal] = useState(false);
+  const [destino, setDestino] = useState('/campanas');
   const [codigo, setCodigo] = useState('');
   const [verificando, setVerificando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +35,7 @@ export default function HomePage() {
       }
       setMostrarModal(false);
       setCodigo('');
-      router.push('/campanas?codigo_ejecutivo=' + encodeURIComponent(resultado.codigo));
+      router.push(destino + '?codigo_ejecutivo=' + encodeURIComponent(resultado.codigo));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo validar el código.');
     } finally {
@@ -42,9 +43,10 @@ export default function HomePage() {
     }
   }
 
-  function abrirModal() {
+  function abrirModal(rutaDestino: string) {
     setCodigo('');
     setError(null);
+    setDestino(rutaDestino);
     setMostrarModal(true);
   }
 
@@ -78,7 +80,7 @@ export default function HomePage() {
 
           {/* Campañas — abre modal de acceso */}
           <button
-            onClick={abrirModal}
+            onClick={() => abrirModal('/campanas')}
             className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all hover:-translate-y-0.5 group text-left"
           >
             <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-2xl mb-4 group-hover:bg-blue-100 transition-colors">
@@ -93,7 +95,7 @@ export default function HomePage() {
 
           {/* Ficha de Ingreso — activa */}
           <button
-            onClick={abrirModal}
+            onClick={() => abrirModal('/fichas-ingreso/nueva')}
             className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all hover:-translate-y-0.5 group text-left"
           >
             <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center text-2xl mb-4 group-hover:bg-green-100 transition-colors">
@@ -155,8 +157,8 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <p className="text-xs text-gray-400">© 2026 Quasar · ControlQP</p>
           <div className="flex items-center gap-4">
-            <button onClick={abrirModal} className="text-xs text-gray-400 hover:text-blue-700">Campañas</button>
-            <button onClick={abrirModal} className="text-xs text-gray-400 hover:text-blue-700">Ficha de Ingreso</button>
+            <button onClick={() => abrirModal('/campanas')} className="text-xs text-gray-400 hover:text-blue-700">Campañas</button>
+            <button onClick={() => abrirModal('/fichas-ingreso/nueva')} className="text-xs text-gray-400 hover:text-blue-700">Ficha de Ingreso</button>
           </div>
         </div>
       </div>
