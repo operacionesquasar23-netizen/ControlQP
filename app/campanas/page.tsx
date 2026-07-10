@@ -1,25 +1,70 @@
 // app/campanas/page.tsx
 //
-// Listado de campañas. Punto de entrada para que el ejecutivo
-// encuentre cualquier campaña (sin tener que recordar el código
-// exacto) y entre a verla/editarla en /campanas/[codigo].
-//
-// Protegido por código de acceso (AccesoEjecutivo): solo se ven las
-// campañas creadas por el ejecutivo cuyo código se ingresó. El código
-// validado se pasa como query param a las rutas internas para no
-// pedirlo de nuevo en el mismo flujo de clics, sin guardarlo en el
-// navegador (localStorage/cookies).
+// Listado de campañas. Lee el codigo_ejecutivo del query param
+// (que viene ya validado desde el modal del index) y no vuelve a
+// pedir el código. Solo muestra AccesoEjecutivo si alguien entra
+// directo a esta URL sin el query param.
 
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { listarCampañas, formatearFecha, type CampañaResumen } from '@/lib/api';
+import { useSearchParams } from 'next/navigation';
+import { listarCampañas, validarEjecutivo, formatearFecha, type CampañaResumen } from '@/lib/api';
 import AccesoEjecutivo from '@/components/AccesoEjecutivo';
 
 type FiltroEstado = 'todas' | 'activa' | 'finalizada' | 'cerrada';
 
 export default function ListadoCampañasPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+          <p className="text-sm text-gray-400">Cargando…</p>
+        </div>
+      }
+    >
+      <ListadoCampañasContenido />
+    </Suspense>
+  );
+}
+
+function ListadoCampañasContenido() {
+  const searchParams = useSearchParams();
+  const codigoDesdeQuery = searchParams.get('codigo_ejecutivo');
+
+  const [verificandoQuery, setVerificandoQuery] = useState(!!codigoDesdeQuery);
+  const [sesionDesdeQuery, setSesionDesdeQuery] = useState<{ codigo: string; nombre: string } | null>(null);
+
+  useEffect(() => {
+    if (!codigoDesdeQuery) return;
+    validarEjecutivo(codigoDesdeQuery)
+      .then((resultado) => {
+        if (resultado.valido && resultado.nombre && resultado.codigo) {
+          setSesionDesdeQuery({ codigo: resultado.codigo, nombre: resultado.nombre });
+        }
+      })
+      .finally(() => setVerificandoQuery(false));
+  }, [codigoDesdeQuery]);
+
+  if (verificandoQuery) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <p className="text-sm text-gray-400">Verificando acceso…</p>
+      </div>
+    );
+  }
+
+  if (sesionDesdeQuery) {
+    return (
+      <ListadoCampañas
+        codigoEjecutivo={sesionDesdeQuery.codigo}
+        nombreEjecutivo={sesionDesdeQuery.nombre}
+      />
+    );
+  }
+
+  // Solo llega aquí si entran directo a /campanas sin query param
   return (
     <AccesoEjecutivo
       titulo="Campañas"
@@ -42,7 +87,6 @@ function ListadoCampañas({
   const [campañas, setCampañas] = useState<CampañaResumen[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
   const [filtroEstado, setFiltroEstado] = useState<FiltroEstado>('todas');
   const [busqueda, setBusqueda] = useState('');
 
@@ -54,8 +98,7 @@ function ListadoCampañas({
   }, [codigoEjecutivo]);
 
   const estadosDisponibles = useMemo(() => {
-    const set = new Set(campañas.map((c) => c.estado));
-    return Array.from(set);
+    return Array.from(new Set(campañas.map((c) => c.estado)));
   }, [campañas]);
 
   const campañasFiltradas = useMemo(() => {
@@ -73,7 +116,6 @@ function ListadoCampañas({
   return (
     <div className="min-h-screen bg-slate-50">
 
-      {/* Header */}
       <div className="bg-brand text-white px-6 py-5">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <Link href="/" className="text-white/80 hover:text-white text-sm">← Inicio</Link>
@@ -95,7 +137,6 @@ function ListadoCampañas({
           </Link>
         </div>
 
-        {/* Filtros */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4 flex flex-col md:flex-row gap-3">
           <input
             type="text"
@@ -146,14 +187,10 @@ function ListadoCampañas({
                     {c.marca} · {c.ejecutivo} · {formatearFecha(c.fecha_inicio)} a {formatearFecha(c.fecha_fin)}
                   </p>
                 </div>
-                <span
-                  className={
-                    'text-xs font-semibold px-2.5 py-1 rounded-full ' +
-                    (c.estado === 'activa'
-                      ? 'bg-green-50 text-green-700'
-                      : 'bg-gray-100 text-gray-500')
-                  }
-                >
+                <span className={
+                  'text-xs font-semibold px-2.5 py-1 rounded-full ' +
+                  (c.estado === 'activa' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500')
+                }>
                   {c.estado}
                 </span>
               </div>
