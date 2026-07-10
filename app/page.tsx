@@ -1,15 +1,53 @@
 // app/page.tsx
 //
-// Index principal de ControlQP, con el mismo lenguaje visual que
-// gestion-pdl (header azul de marca, hero, tarjetas blancas con
-// ícono + hover). Por ahora solo "Registrar nueva campaña" está
-// activa; el resto de tarjetas se van habilitando a medida que se
-// construyan los siguientes pasos del flujo (ficha de ingreso,
-// SOLPED, despachos, devoluciones, alertas...).
+// Index principal de ControlQP.
+// La tarjeta "Campañas" abre un modal de código de acceso directamente
+// en esta misma página (sin navegar a otra ruta). Al validar el código,
+// recién navega a /campanas con el código en la URL.
 
+'use client';
+
+import { useState } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+import { validarEjecutivo } from '@/lib/api';
 
 export default function HomePage() {
+  const router = useRouter();
+
+  const [mostrarModal, setMostrarModal] = useState(false);
+  const [codigo, setCodigo] = useState('');
+  const [verificando, setVerificando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function manejarIngresar(e: React.FormEvent) {
+    e.preventDefault();
+    if (!codigo.trim()) return;
+
+    setVerificando(true);
+    setError(null);
+    try {
+      const resultado = await validarEjecutivo(codigo.trim());
+      if (!resultado.valido || !resultado.codigo) {
+        setError('Código de acceso no válido.');
+        return;
+      }
+      setMostrarModal(false);
+      setCodigo('');
+      router.push('/campanas?codigo_ejecutivo=' + encodeURIComponent(resultado.codigo));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo validar el código.');
+    } finally {
+      setVerificando(false);
+    }
+  }
+
+  function abrirModal() {
+    setCodigo('');
+    setError(null);
+    setMostrarModal(true);
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
 
@@ -38,9 +76,11 @@ export default function HomePage() {
       <div className="max-w-7xl mx-auto px-4 -mt-8 pb-12 w-full">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
 
-          {/* Campañas — activa, apunta al listado */}
-          <a href="/campanas"
-            className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all hover:-translate-y-0.5 group">
+          {/* Campañas — abre modal de acceso */}
+          <button
+            onClick={abrirModal}
+            className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all hover:-translate-y-0.5 group text-left"
+          >
             <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-2xl mb-4 group-hover:bg-blue-100 transition-colors">
               📋
             </div>
@@ -49,11 +89,13 @@ export default function HomePage() {
             <span className="text-xs font-semibold text-blue-700 group-hover:text-blue-800">
               Ver campañas →
             </span>
-          </a>
+          </button>
 
           {/* Ficha de Ingreso — activa */}
-          <a href="/fichas-ingreso/nueva"
-            className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all hover:-translate-y-0.5 group">
+          <button
+            onClick={abrirModal}
+            className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all hover:-translate-y-0.5 group text-left"
+          >
             <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center text-2xl mb-4 group-hover:bg-green-100 transition-colors">
               📥
             </div>
@@ -62,30 +104,26 @@ export default function HomePage() {
             <span className="text-xs font-semibold text-green-700 group-hover:text-green-800">
               Ir al formulario →
             </span>
-          </a>
+          </button>
 
-          {/* SOLPED — pendiente de construir */}
+          {/* SOLPED — pendiente */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 opacity-60 cursor-not-allowed">
             <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center text-2xl mb-4">
               🧾
             </div>
             <h3 className="text-base font-semibold text-gray-900 mb-1">SOLPED</h3>
             <p className="text-sm text-gray-500 mb-4">Solicitudes de despacho con control de versiones.</p>
-            <span className="text-xs font-semibold text-gray-400">
-              Próximamente
-            </span>
+            <span className="text-xs font-semibold text-gray-400">Próximamente</span>
           </div>
 
-          {/* Stock / Alertas — pendiente de construir */}
+          {/* Stock / Alertas — pendiente */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 opacity-60 cursor-not-allowed">
             <div className="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center text-2xl mb-4">
               📊
             </div>
             <h3 className="text-base font-semibold text-gray-900 mb-1">Stock y Alertas</h3>
             <p className="text-sm text-gray-500 mb-4">Inventario en tiempo real y avisos automáticos.</p>
-            <span className="text-xs font-semibold text-gray-400">
-              Próximamente
-            </span>
+            <span className="text-xs font-semibold text-gray-400">Próximamente</span>
           </div>
 
         </div>
@@ -110,7 +148,6 @@ export default function HomePage() {
             </div>
           </div>
         </div>
-
       </div>
 
       {/* Footer */}
@@ -118,11 +155,53 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <p className="text-xs text-gray-400">© 2026 Quasar · ControlQP</p>
           <div className="flex items-center gap-4">
-            <a href="/campanas" className="text-xs text-gray-400 hover:text-blue-700">Campañas</a>
-            <a href="/fichas-ingreso/nueva" className="text-xs text-gray-400 hover:text-blue-700">Ficha de Ingreso</a>
+            <button onClick={abrirModal} className="text-xs text-gray-400 hover:text-blue-700">Campañas</button>
+            <button onClick={abrirModal} className="text-xs text-gray-400 hover:text-blue-700">Ficha de Ingreso</button>
           </div>
         </div>
       </div>
+
+      {/* Modal de acceso */}
+      {mostrarModal && (
+        <div className="fixed inset-0 bg-black/45 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-2xl p-8 max-w-sm w-full shadow-xl">
+            <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-2xl mb-4">
+              📋
+            </div>
+            <h2 className="text-lg font-bold text-gray-900 mb-1">Acceso ejecutivo</h2>
+            <p className="text-sm text-gray-500 mb-5">Ingresa tu código de acceso para continuar.</p>
+
+            <form onSubmit={manejarIngresar}>
+              <label className="text-xs text-gray-400 block mb-1">Código de acceso</label>
+              <div className="flex gap-2 mb-1">
+                <input
+                  type="text"
+                  placeholder="Ej: EJ001"
+                  value={codigo}
+                  onChange={(e) => setCodigo(e.target.value.toUpperCase())}
+                  autoFocus
+                  className="flex-1 h-10 rounded-lg border border-gray-200 px-3 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  type="submit"
+                  disabled={verificando}
+                  className="bg-blue-700 hover:bg-blue-800 disabled:opacity-60 text-white px-4 rounded-lg text-sm font-semibold transition-colors"
+                >
+                  {verificando ? '…' : 'Ingresar'}
+                </button>
+              </div>
+              {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
+            </form>
+
+            <button
+              onClick={() => setMostrarModal(false)}
+              className="mt-4 text-xs text-gray-400 hover:text-gray-600 w-full text-center"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );
