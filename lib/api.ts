@@ -182,3 +182,73 @@ export function crearFichaIngreso(payload: NuevaFichaIngresoPayload) {
 export function agregarElementosACampaña(payload: AgregarElementosPayload) {
   return postAction<AgregarElementosResultado>('agregarElementosACampaña', payload as unknown as Record<string, unknown>);
 }
+
+// ---- AGREGAR al final de lib/api.ts ----
+
+// Tipos SOLPED
+export interface LineaSolped {
+  nombre_lugar: string;
+  nombre_producto: string;
+  cantidad_solicitada: number;
+}
+
+export interface NuevaSolpedPayload {
+  codigo_campaña: string;
+  codigo_ejecutivo: string;
+  fecha_despacho: string;
+  lineas: LineaSolped[];
+}
+
+export interface NuevaVersionSolpedPayload {
+  id_solped_anterior: string;
+  codigo_ejecutivo: string;
+  fecha_despacho: string;
+  motivo_cambio: string;
+  lineas: LineaSolped[];
+}
+
+export interface SolpedCabecera {
+  id_solped: string;
+  codigo_campaña: string;
+  version: number;
+  id_solped_anterior: string;
+  estado: string;
+  fecha_despacho: string;
+  fecha_creacion: string;
+  codigo_ejecutivo: string;
+  motivo_cambio: string;
+}
+
+export interface SolpedCompleta {
+  cabecera: SolpedCabecera;
+  detalle: LineaSolped[];
+}
+
+// Funciones SOLPED
+export function obtenerSolpedsDeCampaña(codigoCampaña: string, codigoEjecutivo: string) {
+  return getAction<SolpedCompleta[]>('solpedsCampaña', {
+    codigo_campaña: codigoCampaña,
+    codigo_ejecutivo: codigoEjecutivo,
+  });
+}
+
+export function obtenerStockDisponible(codigoCampaña: string, codigoEjecutivo: string) {
+  return getAction<Record<string, number>>('stockDisponible', {
+    codigo_campaña: codigoCampaña,
+    codigo_ejecutivo: codigoEjecutivo,
+  });
+}
+
+export function crearSolpedInicial(payload: NuevaSolpedPayload) {
+  return postAction<{ id_solped: string; version: number }>(
+    'crearSolpedInicial',
+    payload as unknown as Record<string, unknown>
+  );
+}
+
+export function crearNuevaVersionSolped(payload: NuevaVersionSolpedPayload) {
+  return postAction<{ id_solped: string; version: number }>(
+    'crearNuevaVersionSolped',
+    payload as unknown as Record<string, unknown>
+  );
+}
