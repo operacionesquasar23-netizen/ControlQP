@@ -108,15 +108,20 @@ export default function HomePage() {
             </span>
           </button>
 
-          {/* SOLPED — pendiente */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 opacity-60 cursor-not-allowed">
-            <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center text-2xl mb-4">
+          {/* SOLPED — activa */}
+          <button
+            onClick={() => abrirModal('/solped/nueva')}
+            className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all hover:-translate-y-0.5 group text-left"
+          >
+            <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center text-2xl mb-4 group-hover:bg-amber-100 transition-colors">
               🧾
             </div>
             <h3 className="text-base font-semibold text-gray-900 mb-1">SOLPED</h3>
             <p className="text-sm text-gray-500 mb-4">Solicitudes de despacho con control de versiones.</p>
-            <span className="text-xs font-semibold text-gray-400">Próximamente</span>
-          </div>
+            <span className="text-xs font-semibold text-amber-700 group-hover:text-amber-800">
+              Ir al formulario →
+            </span>
+          </button>
 
           {/* Stock / Alertas — pendiente */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 opacity-60 cursor-not-allowed">
