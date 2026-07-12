@@ -192,9 +192,12 @@ export interface FotoRecepcionAlmacen {
 export interface ConfirmarRecepcionPayload {
   id_ficha: string;
   codigo_almacen: string;
-  numero_guia: string;
+  num_guia_remision?: string;
+  numero_guia?: string;
+  urls_fotos?: string[];
+  observaciones?: string;
   lineas: LineaRecepcionAlmacen[];
-  fotos: FotoRecepcionAlmacen[];
+  fotos?: FotoRecepcionAlmacen[];
 }
 
 export interface ConfirmarRecepcionResultado {
