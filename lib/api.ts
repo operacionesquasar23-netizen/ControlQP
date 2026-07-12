@@ -353,32 +353,13 @@ export interface FichaPendiente {
   detalle: FichaDetalleLine[];
 }
 
-export interface ValidacionAlmacen {
-  valido: boolean;
-  nombre?: string;
-  codigo?: string;
-}
-
 export interface LineaRecepcionPayload {
   nombre_producto: string;
   cantidad_esperada: number;
   cantidad_recibida: number;
 }
 
-export interface ConfirmarRecepcionPayload {
-  id_ficha: string;
-  codigo_almacen: string;
-  num_guia_remision: string;
-  urls_fotos: string[];
-  observaciones?: string;
-  lineas: LineaRecepcionPayload[];
-}
-
 // Funciones Recepción
-export function validarAlmacen(codigoAlmacen: string) {
-  return getAction<ValidacionAlmacen>('validarAlmacen', { codigo_almacen: codigoAlmacen });
-}
-
 export function listarFichasPendientes() {
   return getAction<FichaPendiente[]>('fichasPendientes');
 }
