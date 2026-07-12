@@ -141,6 +141,66 @@ export interface CrearFichaIngresoResultado {
   id_ficha: string;
 }
 
+export interface ValidacionAlmacen {
+  valido: boolean;
+  nombre?: string;
+  codigo?: string;
+}
+
+export interface FichaIngresoPendiente {
+  id_ficha: string;
+  codigo_campaña: string;
+  cliente: string;
+  marca: string;
+  ejecutivo: string;
+  fecha_creacion: string;
+  estado: string;
+  total_productos: number;
+}
+
+export interface LineaFichaIngresoDetalle {
+  nombre_producto: string;
+  unidad?: string;
+  categoria?: string;
+  cantidad_esperada: number;
+}
+
+export interface FichaIngresoDetalle {
+  id_ficha: string;
+  codigo_campaña: string;
+  cliente: string;
+  marca: string;
+  ejecutivo: string;
+  fecha_creacion: string;
+  estado: string;
+  lineas: LineaFichaIngresoDetalle[];
+}
+
+export interface LineaRecepcionAlmacen {
+  nombre_producto: string;
+  cantidad_esperada: number;
+  cantidad_recibida: number;
+}
+
+export interface FotoRecepcionAlmacen {
+  nombre_archivo: string;
+  tipo_mime: string;
+  contenido_base64: string;
+  principal: boolean;
+}
+
+export interface ConfirmarRecepcionPayload {
+  id_ficha: string;
+  codigo_almacen: string;
+  numero_guia: string;
+  lineas: LineaRecepcionAlmacen[];
+  fotos: FotoRecepcionAlmacen[];
+}
+
+export interface ConfirmarRecepcionResultado {
+  id_recepcion: string;
+}
+
 export interface AgregarElementosPayload {
   codigo_campaña: string;
   codigo_ejecutivo: string;
@@ -171,12 +231,31 @@ export function validarEjecutivo(codigoEjecutivo: string) {
   return getAction<ValidacionEjecutivo>('validarEjecutivo', { codigo_ejecutivo: codigoEjecutivo });
 }
 
+export function validarAlmacen(codigoAlmacen: string) {
+  return getAction<ValidacionAlmacen>('validarAlmacen', { codigo_almacen: codigoAlmacen });
+}
+
 export function obtenerCampaña(codigoCampaña: string, codigoEjecutivo: string) {
   return getAction<CampañaCompleta>('campaña', { codigo_campaña: codigoCampaña, codigo_ejecutivo: codigoEjecutivo });
 }
 
 export function crearFichaIngreso(payload: NuevaFichaIngresoPayload) {
   return postAction<CrearFichaIngresoResultado>('crearFichaIngreso', payload as unknown as Record<string, unknown>);
+}
+
+export function listarFichasIngresoPendientes(codigoAlmacen: string) {
+  return getAction<FichaIngresoPendiente[]>('fichasIngresoPendientes', { codigo_almacen: codigoAlmacen });
+}
+
+export function obtenerFichaIngreso(idFicha: string, codigoAlmacen: string) {
+  return getAction<FichaIngresoDetalle>('fichaIngreso', { id_ficha: idFicha, codigo_almacen: codigoAlmacen });
+}
+
+export function confirmarRecepcionAlmacen(payload: ConfirmarRecepcionPayload) {
+  return postAction<ConfirmarRecepcionResultado>(
+    'confirmarRecepcionAlmacen',
+    payload as unknown as Record<string, unknown>
+  );
 }
 
 export function agregarElementosACampaña(payload: AgregarElementosPayload) {
@@ -249,6 +328,84 @@ export function crearSolpedInicial(payload: NuevaSolpedPayload) {
 export function crearNuevaVersionSolped(payload: NuevaVersionSolpedPayload) {
   return postAction<{ id_solped: string; version: number }>(
     'crearNuevaVersionSolped',
+    payload as unknown as Record<string, unknown>
+  );
+}
+
+// Tipos Recepción
+export interface FichaPendienteCabecera {
+  id_ficha: string;
+  codigo_campaña: string;
+  fecha_envio: string;
+  ejecutivo: string;
+  estado: string;
+  cliente: string;
+  marca: string;
+}
+
+export interface FichaDetalleLine {
+  nombre_producto: string;
+  cantidad_esperada: number;
+}
+
+export interface FichaPendiente {
+  cabecera: FichaPendienteCabecera;
+  detalle: FichaDetalleLine[];
+}
+
+export interface ValidacionAlmacen {
+  valido: boolean;
+  nombre?: string;
+  codigo?: string;
+}
+
+export interface LineaRecepcionPayload {
+  nombre_producto: string;
+  cantidad_esperada: number;
+  cantidad_recibida: number;
+}
+
+export interface ConfirmarRecepcionPayload {
+  id_ficha: string;
+  codigo_almacen: string;
+  num_guia_remision: string;
+  urls_fotos: string[];
+  observaciones?: string;
+  lineas: LineaRecepcionPayload[];
+}
+
+// Funciones Recepción
+export function validarAlmacen(codigoAlmacen: string) {
+  return getAction<ValidacionAlmacen>('validarAlmacen', { codigo_almacen: codigoAlmacen });
+}
+
+export function listarFichasPendientes() {
+  return getAction<FichaPendiente[]>('fichasPendientes');
+}
+
+export function obtenerFichaParaRecepcion(idFicha: string) {
+  return getAction<FichaPendiente>('fichaRecepcion', { id_ficha: idFicha });
+}
+
+export function subirFotoRecepcion(
+  idFicha: string,
+  codigoCampaña: string,
+  base64Data: string,
+  mimeType: string,
+  nombreArchivo: string
+) {
+  return postAction<string>('subirFotoRecepcion', {
+    id_ficha: idFicha,
+    codigo_campaña: codigoCampaña,
+    base64Data,
+    mimeType,
+    nombreArchivo,
+  });
+}
+
+export function confirmarRecepcion(payload: ConfirmarRecepcionPayload) {
+  return postAction<{ id_recepcion: string }>(
+    'confirmarRecepcion',
     payload as unknown as Record<string, unknown>
   );
 }
