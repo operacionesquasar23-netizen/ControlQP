@@ -1,12 +1,4 @@
 // lib/api.ts
-//
-// Cliente para comunicarse con el backend de Google Apps Script.
-// La URL viene de una variable de entorno porque cambia cada vez que
-// se hace una nueva implementación del script (o si usas un script
-// distinto en otro ambiente, ej. pruebas vs producción).
-//
-// En Vercel: Settings > Environment Variables > NEXT_PUBLIC_APPS_SCRIPT_URL
-// En local: archivo .env.local con la misma variable.
 
 const APPS_SCRIPT_URL = process.env.NEXT_PUBLIC_APPS_SCRIPT_URL || '';
 
@@ -15,18 +7,6 @@ export interface ApiResponse<T> {
   error?: string;
 }
 
-export interface ValidacionEjecutivo {
-  valido: boolean;
-  nombre?: string;
-  codigo?: string;
-}
-
-/**
- * Formatea una fecha en formato "YYYY-MM-DD" (la que devuelve el
- * backend, ya normalizada) a "DD/MM/YYYY" para mostrar en pantalla.
- * Si el valor no tiene el formato esperado, lo devuelve tal cual
- * en vez de romper la UI.
- */
 export function formatearFecha(fechaIso: string): string {
   if (!fechaIso) return '';
   const partes = fechaIso.slice(0, 10).split('-');
@@ -36,40 +16,27 @@ export function formatearFecha(fechaIso: string): string {
 }
 
 async function postAction<T>(action: string, payload: Record<string, unknown>): Promise<T> {
-  if (!APPS_SCRIPT_URL) {
-    throw new Error('Falta configurar NEXT_PUBLIC_APPS_SCRIPT_URL en las variables de entorno.');
-  }
-
+  if (!APPS_SCRIPT_URL) throw new Error('Falta configurar NEXT_PUBLIC_APPS_SCRIPT_URL.');
   const res = await fetch(APPS_SCRIPT_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    // Content-Type text/plain evita un preflight OPTIONS que Apps Script
-    // no siempre maneja bien. El body sigue siendo JSON válido.
     body: JSON.stringify({ action, payload }),
   });
-
   const json: ApiResponse<T> = await res.json();
-  if (json.error) {
-    throw new Error(json.error);
-  }
+  if (json.error) throw new Error(json.error);
   return json.data as T;
 }
 
 async function getAction<T>(action: string, params: Record<string, string> = {}): Promise<T> {
-  if (!APPS_SCRIPT_URL) {
-    throw new Error('Falta configurar NEXT_PUBLIC_APPS_SCRIPT_URL en las variables de entorno.');
-  }
-
+  if (!APPS_SCRIPT_URL) throw new Error('Falta configurar NEXT_PUBLIC_APPS_SCRIPT_URL.');
   const query = new URLSearchParams({ action, ...params }).toString();
   const res = await fetch(`${APPS_SCRIPT_URL}?${query}`);
   const json: ApiResponse<T> = await res.json();
-  if (json.error) {
-    throw new Error(json.error);
-  }
+  if (json.error) throw new Error(json.error);
   return json.data as T;
 }
 
-// ---- Tipos del dominio (Paso 1: Campaña) ----
+// ---- Tipos: Campaña ----
 
 export interface Lugar {
   nombre_lugar: string;
@@ -111,8 +78,6 @@ export interface CampañaResumen {
   estado: string;
 }
 
-// ---- Tipos del dominio (Paso 2: Ficha de Ingreso) ----
-
 export interface CampañaProducto {
   codigo_campaña: string;
   nombre_producto: string;
@@ -125,6 +90,20 @@ export interface CampañaCompleta {
   lugares: Lugar[];
   productos: CampañaProducto[];
 }
+
+export interface AgregarElementosPayload {
+  codigo_campaña: string;
+  codigo_ejecutivo: string;
+  lugares?: Lugar[];
+  productos?: Producto[];
+}
+
+export interface AgregarElementosResultado {
+  lugaresAgregados: number;
+  productosAgregados: number;
+}
+
+// ---- Tipos: Ficha de Ingreso ----
 
 export interface LineaFichaIngreso {
   nombre_producto: string;
@@ -139,12 +118,6 @@ export interface NuevaFichaIngresoPayload {
 
 export interface CrearFichaIngresoResultado {
   id_ficha: string;
-}
-
-export interface ValidacionAlmacen {
-  valido: boolean;
-  nombre?: string;
-  codigo?: string;
 }
 
 export interface FichaIngresoPendiente {
@@ -176,98 +149,8 @@ export interface FichaIngresoDetalle {
   lineas: LineaFichaIngresoDetalle[];
 }
 
-export interface LineaRecepcionAlmacen {
-  nombre_producto: string;
-  cantidad_esperada: number;
-  cantidad_recibida: number;
-}
+// ---- Tipos: SOLPED ----
 
-export interface FotoRecepcionAlmacen {
-  nombre_archivo: string;
-  tipo_mime: string;
-  contenido_base64: string;
-  principal: boolean;
-}
-
-export interface ConfirmarRecepcionPayload {
-  id_ficha: string;
-  codigo_almacen: string;
-  num_guia_remision?: string;
-  numero_guia?: string;
-  urls_fotos?: string[];
-  observaciones?: string;
-  lineas: LineaRecepcionAlmacen[];
-  fotos?: FotoRecepcionAlmacen[];
-}
-
-export interface ConfirmarRecepcionResultado {
-  id_recepcion: string;
-}
-
-export interface AgregarElementosPayload {
-  codigo_campaña: string;
-  codigo_ejecutivo: string;
-  lugares?: Lugar[];
-  productos?: Producto[];
-}
-
-export interface AgregarElementosResultado {
-  lugaresAgregados: number;
-  productosAgregados: number;
-}
-
-// ---- Funciones expuestas ----
-
-export function crearCampaña(payload: NuevaCampañaPayload) {
-  return postAction<CrearCampañaResultado>('crearCampaña', payload as unknown as Record<string, unknown>);
-}
-
-export function obtenerCategorias() {
-  return getAction<string[]>('categorias');
-}
-
-export function listarCampañas(codigoEjecutivo: string) {
-  return getAction<CampañaResumen[]>('campanas', { codigo_ejecutivo: codigoEjecutivo });
-}
-
-export function validarEjecutivo(codigoEjecutivo: string) {
-  return getAction<ValidacionEjecutivo>('validarEjecutivo', { codigo_ejecutivo: codigoEjecutivo });
-}
-
-export function validarAlmacen(codigoAlmacen: string) {
-  return getAction<ValidacionAlmacen>('validarAlmacen', { codigo_almacen: codigoAlmacen });
-}
-
-export function obtenerCampaña(codigoCampaña: string, codigoEjecutivo: string) {
-  return getAction<CampañaCompleta>('campaña', { codigo_campaña: codigoCampaña, codigo_ejecutivo: codigoEjecutivo });
-}
-
-export function crearFichaIngreso(payload: NuevaFichaIngresoPayload) {
-  return postAction<CrearFichaIngresoResultado>('crearFichaIngreso', payload as unknown as Record<string, unknown>);
-}
-
-export function listarFichasIngresoPendientes(codigoAlmacen: string) {
-  return getAction<FichaIngresoPendiente[]>('fichasIngresoPendientes', { codigo_almacen: codigoAlmacen });
-}
-
-export function obtenerFichaIngreso(idFicha: string, codigoAlmacen: string) {
-  return getAction<FichaIngresoDetalle>('fichaIngreso', { id_ficha: idFicha, codigo_almacen: codigoAlmacen });
-}
-
-export function confirmarRecepcionAlmacen(payload: ConfirmarRecepcionPayload) {
-  return postAction<ConfirmarRecepcionResultado>(
-    'confirmarRecepcionAlmacen',
-    payload as unknown as Record<string, unknown>
-  );
-}
-
-export function agregarElementosACampaña(payload: AgregarElementosPayload) {
-  return postAction<AgregarElementosResultado>('agregarElementosACampaña', payload as unknown as Record<string, unknown>);
-}
-
-// ---- AGREGAR al final de lib/api.ts ----
-
-// Tipos SOLPED
 export interface LineaSolped {
   nombre_lugar: string;
   nombre_producto: string;
@@ -306,7 +189,105 @@ export interface SolpedCompleta {
   detalle: LineaSolped[];
 }
 
-// Funciones SOLPED
+// ---- Tipos: Recepción ----
+
+export interface ValidacionEjecutivo {
+  valido: boolean;
+  nombre?: string;
+  codigo?: string;
+}
+
+export interface ValidacionAlmacen {
+  valido: boolean;
+  nombre?: string;
+  codigo?: string;
+}
+
+export interface FichaPendienteCabecera {
+  id_ficha: string;
+  codigo_campaña: string;
+  fecha_envio: string;
+  ejecutivo: string;
+  estado: string;
+  cliente: string;
+  marca: string;
+}
+
+export interface FichaDetalleLine {
+  nombre_producto: string;
+  cantidad_esperada: number;
+}
+
+export interface FichaPendiente {
+  cabecera: FichaPendienteCabecera;
+  detalle: FichaDetalleLine[];
+}
+
+export interface LineaRecepcionAlmacen {
+  nombre_producto: string;
+  cantidad_esperada: number;
+  cantidad_recibida: number;
+}
+
+export interface FotoRecepcionAlmacen {
+  nombre_archivo: string;
+  tipo_mime: string;
+  contenido_base64: string;
+  principal: boolean;
+}
+
+export interface ConfirmarRecepcionPayload {
+  id_ficha: string;
+  codigo_almacen: string;
+  num_guia_remision?: string;
+  numero_guia?: string;
+  urls_fotos?: string[];
+  urls_fotos_por_producto?: { nombre_producto: string; url: string }[];
+  observaciones?: string;
+  lineas: LineaRecepcionAlmacen[];
+  fotos?: FotoRecepcionAlmacen[];
+}
+
+// ---- Funciones: Campaña ----
+
+export function crearCampaña(payload: NuevaCampañaPayload) {
+  return postAction<CrearCampañaResultado>('crearCampaña', payload as unknown as Record<string, unknown>);
+}
+
+export function obtenerCategorias() {
+  return getAction<string[]>('categorias');
+}
+
+export function listarCampañas(codigoEjecutivo: string) {
+  return getAction<CampañaResumen[]>('campanas', { codigo_ejecutivo: codigoEjecutivo });
+}
+
+export function validarEjecutivo(codigoEjecutivo: string) {
+  return getAction<ValidacionEjecutivo>('validarEjecutivo', { codigo_ejecutivo: codigoEjecutivo });
+}
+
+export function obtenerCampaña(codigoCampaña: string, codigoEjecutivo: string) {
+  return getAction<CampañaCompleta>('campaña', { codigo_campaña: codigoCampaña, codigo_ejecutivo: codigoEjecutivo });
+}
+
+export function crearFichaIngreso(payload: NuevaFichaIngresoPayload) {
+  return postAction<CrearFichaIngresoResultado>('crearFichaIngreso', payload as unknown as Record<string, unknown>);
+}
+
+export function listarFichasIngresoPendientes(codigoAlmacen: string) {
+  return getAction<FichaIngresoPendiente[]>('fichasIngresoPendientes', { codigo_almacen: codigoAlmacen });
+}
+
+export function obtenerFichaIngreso(idFicha: string, codigoAlmacen: string) {
+  return getAction<FichaIngresoDetalle>('fichaIngreso', { id_ficha: idFicha, codigo_almacen: codigoAlmacen });
+}
+
+export function agregarElementosACampaña(payload: AgregarElementosPayload) {
+  return postAction<AgregarElementosResultado>('agregarElementosACampaña', payload as unknown as Record<string, unknown>);
+}
+
+// ---- Funciones: SOLPED ----
+
 export function obtenerSolpedsDeCampaña(codigoCampaña: string, codigoEjecutivo: string) {
   return getAction<SolpedCompleta[]>('solpedsCampaña', {
     codigo_campaña: codigoCampaña,
@@ -335,34 +316,12 @@ export function crearNuevaVersionSolped(payload: NuevaVersionSolpedPayload) {
   );
 }
 
-// Tipos Recepción
-export interface FichaPendienteCabecera {
-  id_ficha: string;
-  codigo_campaña: string;
-  fecha_envio: string;
-  ejecutivo: string;
-  estado: string;
-  cliente: string;
-  marca: string;
+// ---- Funciones: Recepción ----
+
+export function validarAlmacen(codigoAlmacen: string) {
+  return getAction<ValidacionAlmacen>('validarAlmacen', { codigo_almacen: codigoAlmacen });
 }
 
-export interface FichaDetalleLine {
-  nombre_producto: string;
-  cantidad_esperada: number;
-}
-
-export interface FichaPendiente {
-  cabecera: FichaPendienteCabecera;
-  detalle: FichaDetalleLine[];
-}
-
-export interface LineaRecepcionPayload {
-  nombre_producto: string;
-  cantidad_esperada: number;
-  cantidad_recibida: number;
-}
-
-// Funciones Recepción
 export function listarFichasPendientes() {
   return getAction<FichaPendiente[]>('fichasPendientes');
 }
@@ -387,14 +346,9 @@ export function subirFotoRecepcion(
   });
 }
 
-export interface ConfirmarRecepcionPayload {
-  id_ficha: string;
-  codigo_almacen: string;
-  num_guia_remision?: string;
-  numero_guia?: string;
-  urls_fotos?: string[];
-  urls_fotos_por_producto?: { nombre_producto: string; url: string }[];
-  observaciones?: string;
-  lineas: LineaRecepcionAlmacen[];
-  fotos?: FotoRecepcionAlmacen[];
+export function confirmarRecepcion(payload: ConfirmarRecepcionPayload) {
+  return postAction<{ id_recepcion: string }>(
+    'confirmarRecepcion',
+    payload as unknown as Record<string, unknown>
+  );
 }
