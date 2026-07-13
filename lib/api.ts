@@ -387,9 +387,14 @@ export function subirFotoRecepcion(
   });
 }
 
-export function confirmarRecepcion(payload: ConfirmarRecepcionPayload) {
-  return postAction<{ id_recepcion: string }>(
-    'confirmarRecepcion',
-    payload as unknown as Record<string, unknown>
-  );
+export interface ConfirmarRecepcionPayload {
+  id_ficha: string;
+  codigo_almacen: string;
+  num_guia_remision?: string;
+  numero_guia?: string;
+  urls_fotos?: string[];
+  urls_fotos_por_producto?: { nombre_producto: string; url: string }[];
+  observaciones?: string;
+  lineas: LineaRecepcionAlmacen[];
+  fotos?: FotoRecepcionAlmacen[];
 }

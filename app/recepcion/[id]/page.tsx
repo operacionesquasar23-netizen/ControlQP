@@ -1,8 +1,4 @@
 // app/recepcion/[id]/page.tsx
-//
-// Confirmación de recepción de una ficha específica.
-// Almacén ingresa cantidades reales recibidas (puede diferir de lo
-// esperado), número de guía de remisión, y sube foto(s) como evidencia.
 
 'use client';
 
@@ -22,6 +18,13 @@ interface LineaRecepcion {
   nombre_producto: string;
   cantidad_esperada: number;
   cantidad_recibida: string;
+}
+
+interface FotoProducto {
+  preview: string;
+  base64: string;
+  mimeType: string;
+  nombre: string;
 }
 
 export default function ConfirmarRecepcionPage({ params }: { params: { id: string } }) {
@@ -89,7 +92,12 @@ function FormularioRecepcion({
   const [lineas, setLineas] = useState<LineaRecepcion[]>([]);
   const [guiaRemision, setGuiaRemision] = useState('');
   const [observaciones, setObservaciones] = useState('');
-  const [fotos, setFotos] = useState<{ preview: string; base64: string; mimeType: string; nombre: string }[]>([]);
+
+  // Fotos indexadas por nombre_producto
+  const [fotosPorProducto, setFotosPorProducto] = useState<{
+    [nombre_producto: string]: FotoProducto;
+  }>({});
+  const [productoSeleccionado, setProductoSeleccionado] = useState<string>('');
 
   const [subiendo, setSubiendo] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
@@ -105,7 +113,7 @@ function FormularioRecepcion({
         setLineas(f.detalle.map((d) => ({
           nombre_producto: d.nombre_producto,
           cantidad_esperada: Number(d.cantidad_esperada),
-          cantidad_recibida: String(d.cantidad_esperada), // pre-rellena con lo esperado
+          cantidad_recibida: String(d.cantidad_esperada),
         })));
       })
       .catch((err) => setErrorCarga(err instanceof Error ? err.message : 'Error cargando ficha.'))
@@ -116,41 +124,45 @@ function FormularioRecepcion({
     setLineas((prev) => prev.map((l, i) => (i === index ? { ...l, cantidad_recibida: cantidad } : l)));
   }
 
-  async function manejarFoto(e: React.ChangeEvent<HTMLInputElement>) {
-    const archivos = Array.from(e.target.files || []);
-    if (archivos.length === 0) return;
+  function manejarFoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const archivo = e.target.files?.[0];
+    if (!archivo || !productoSeleccionado) return;
 
-    for (const archivo of archivos) {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const dataUrl = ev.target?.result as string;
-        const base64 = dataUrl.split(',')[1];
-        setFotos((prev) => [...prev, {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string;
+      const base64 = dataUrl.split(',')[1];
+      setFotosPorProducto((prev) => ({
+        ...prev,
+        [productoSeleccionado]: {
           preview: dataUrl,
           base64,
           mimeType: archivo.type,
-          nombre: `recepcion_${id}_${Date.now()}.${archivo.type.split('/')[1]}`
-        }]);
-      };
-      reader.readAsDataURL(archivo);
-    }
-    // Reset input para permitir seleccionar la misma foto de nuevo
+          nombre: `recepcion_${id}_${productoSeleccionado.replace(/\s+/g, '_')}_${Date.now()}.${archivo.type.split('/')[1]}`,
+        },
+      }));
+    };
+    reader.readAsDataURL(archivo);
     if (inputFotoRef.current) inputFotoRef.current.value = '';
   }
 
-  function eliminarFoto(index: number) {
-    setFotos((prev) => prev.filter((_, i) => i !== index));
+  function eliminarFoto(nombre_producto: string) {
+    setFotosPorProducto((prev) => {
+      const next = { ...prev };
+      delete next[nombre_producto];
+      return next;
+    });
   }
 
   function validar(): string[] {
     const errs: string[] = [];
     if (!guiaRemision.trim()) errs.push('El número de guía de remisión es obligatorio.');
-    if (fotos.length === 0) errs.push('Debe adjuntar al menos una foto de la recepción.');
+    if (Object.keys(fotosPorProducto).length === 0)
+      errs.push('Debe adjuntar al menos una foto de evidencia.');
     lineas.forEach((l, i) => {
       const cant = Number(l.cantidad_recibida);
-      if (!l.cantidad_recibida || isNaN(cant) || cant < 0) {
+      if (!l.cantidad_recibida || isNaN(cant) || cant < 0)
         errs.push(`Línea ${i + 1}: la cantidad recibida debe ser 0 o mayor.`);
-      }
     });
     return errs;
   }
@@ -161,19 +173,19 @@ function FormularioRecepcion({
     if (errs.length > 0) return;
 
     setSubiendo(true);
-    let urlsFotos: string[] = [];
+    let urlsFotosPorProducto: { nombre_producto: string; url: string }[] = [];
     try {
-      // Sube las fotos primero
-      urlsFotos = await Promise.all(
-        fotos.map((foto) =>
-          subirFotoRecepcion(
+      urlsFotosPorProducto = await Promise.all(
+        Object.entries(fotosPorProducto).map(async ([nombre_producto, foto]) => {
+          const url = await subirFotoRecepcion(
             id,
             ficha!.cabecera.codigo_campaña,
             foto.base64,
             foto.mimeType,
             foto.nombre
-          )
-        )
+          );
+          return { nombre_producto, url };
+        })
       );
     } catch (err) {
       setErrores(['Error al subir las fotos: ' + (err instanceof Error ? err.message : 'Error desconocido.')]);
@@ -188,7 +200,8 @@ function FormularioRecepcion({
         id_ficha: id,
         codigo_almacen: codigoAlmacen,
         num_guia_remision: guiaRemision.trim(),
-        urls_fotos: urlsFotos,
+        urls_fotos: urlsFotosPorProducto.map((f) => f.url),
+        urls_fotos_por_producto: urlsFotosPorProducto,
         observaciones: observaciones.trim(),
         lineas: lineas.map((l) => ({
           nombre_producto: l.nombre_producto,
@@ -251,10 +264,8 @@ function FormularioRecepcion({
     <div className="min-h-screen bg-slate-50">
       <div className="bg-brand text-white px-6 py-5">
         <div className="max-w-3xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link href={`/recepcion?codigo_almacen=${encodeURIComponent(codigoAlmacen)}`}
-              className="text-white/80 hover:text-white text-sm">← Fichas pendientes</Link>
-          </div>
+          <Link href={`/recepcion?codigo_almacen=${encodeURIComponent(codigoAlmacen)}`}
+            className="text-white/80 hover:text-white text-sm">← Fichas pendientes</Link>
           <span className="text-white/80 text-sm">{nombreAlmacen}</span>
         </div>
       </div>
@@ -308,12 +319,14 @@ function FormularioRecepcion({
           )}
         </section>
 
-        {/* Guía de remisión */}
+        {/* Datos de la recepción */}
         <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-4">
           <p className="text-sm font-semibold text-gray-900 mb-4">Datos de la recepción</p>
           <div className="grid grid-cols-1 gap-3">
             <div>
-              <label className="text-xs text-gray-400 block mb-1">N° de guía de remisión <span className="text-red-500">*</span></label>
+              <label className="text-xs text-gray-400 block mb-1">
+                N° de guía de remisión <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
                 placeholder="Ej: 001-000123"
@@ -335,69 +348,74 @@ function FormularioRecepcion({
           </div>
         </section>
 
-        {/* Fotos */}
+        {/* Fotos por producto */}
         <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-4">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="text-sm font-semibold text-gray-900">Fotos de evidencia <span className="text-red-500">*</span></p>
-              <p className="text-xs text-gray-400 mt-0.5">Mínimo 1 foto obligatoria</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => inputFotoRef.current?.click()}
-              className="text-xs font-semibold text-blue-700 hover:text-blue-800 border border-blue-200 rounded-lg px-3 py-1.5 transition-colors"
-            >
-              📷 Agregar foto
-            </button>
-            <input
-              ref={inputFotoRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              multiple
-              onChange={manejarFoto}
-              className="hidden"
-            />
+          <p className="text-sm font-semibold text-gray-900 mb-1">
+            Fotos por producto <span className="text-red-500">*</span>
+          </p>
+          <p className="text-xs text-gray-400 mb-4">
+            Toca 📷 en cada producto para adjuntar su foto de evidencia
+          </p>
+
+          <div className="space-y-3">
+            {lineas.map((linea) => {
+              const foto = fotosPorProducto[linea.nombre_producto];
+              return (
+                <div
+                  key={linea.nombre_producto}
+                  className="flex items-center gap-3 border border-gray-100 rounded-xl p-3"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-900 truncate">{linea.nombre_producto}</p>
+                    {foto && (
+                      <p className="text-xs text-green-600 mt-0.5">✓ Foto adjunta</p>
+                    )}
+                  </div>
+                  {foto ? (
+                    <div className="relative shrink-0">
+                      <img
+                        src={foto.preview}
+                        alt={linea.nombre_producto}
+                        className="w-16 h-16 object-cover rounded-lg"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => eliminarFoto(linea.nombre_producto)}
+                        className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProductoSeleccionado(linea.nombre_producto);
+                        inputFotoRef.current?.click();
+                      }}
+                      className="shrink-0 text-xs font-semibold text-blue-700 hover:text-blue-800 border border-blue-200 rounded-lg px-3 py-1.5 transition-colors"
+                    >
+                      📷 Foto
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
-          {fotos.length === 0 && (
-            <button
-              type="button"
-              onClick={() => inputFotoRef.current?.click()}
-              className="w-full border-2 border-dashed border-gray-200 rounded-xl p-8 text-center hover:border-blue-300 transition-colors"
-            >
-              <p className="text-3xl mb-2">📷</p>
-              <p className="text-sm text-gray-400">Toca para tomar o seleccionar una foto</p>
-            </button>
-          )}
+          {/* Resumen fotos */}
+          <p className="text-xs text-gray-400 mt-4">
+            {Object.keys(fotosPorProducto).length} de {lineas.length} productos con foto
+          </p>
 
-          {fotos.length > 0 && (
-            <div className="grid grid-cols-3 gap-2">
-              {fotos.map((foto, i) => (
-                <div key={i} className="relative">
-                  <img
-                    src={foto.preview}
-                    alt={`Foto ${i + 1}`}
-                    className="w-full h-24 object-cover rounded-lg"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => eliminarFoto(i)}
-                    className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center"
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={() => inputFotoRef.current?.click()}
-                className="h-24 border-2 border-dashed border-gray-200 rounded-lg flex items-center justify-center hover:border-blue-300 transition-colors"
-              >
-                <span className="text-2xl text-gray-300">+</span>
-              </button>
-            </div>
-          )}
+          <input
+            ref={inputFotoRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={manejarFoto}
+            className="hidden"
+          />
         </section>
 
         <div className="flex justify-end">
