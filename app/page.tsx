@@ -80,7 +80,7 @@ export default function HomePage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 -mt-8 pb-12 w-full">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
 
           <button onClick={() => abrirModal(modalEj('/campanas'))}
             className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all hover:-translate-y-0.5 group text-left">
@@ -114,10 +114,18 @@ export default function HomePage() {
             <span className="text-xs font-semibold text-purple-700 group-hover:text-purple-800">Ir a recepciones →</span>
           </button>
 
+          <button onClick={() => abrirModal(modalAlm('/despacho'))}
+            className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all hover:-translate-y-0.5 group text-left">
+            <div className="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center text-2xl mb-4 group-hover:bg-orange-100 transition-colors">🚚</div>
+            <h3 className="text-base font-semibold text-gray-900 mb-1">Despacho</h3>
+            <p className="text-sm text-gray-500 mb-4">Confirma el despacho de una SOLPED vigente con foto.</p>
+            <span className="text-xs font-semibold text-orange-700 group-hover:text-orange-800">Ir a despachos →</span>
+          </button>
+
         </div>
 
         <div className="mt-6 bg-white rounded-2xl border border-gray-100 shadow-sm px-8 py-6">
-          <div className="grid grid-cols-4 gap-6 text-center">
+          <div className="grid grid-cols-5 gap-6 text-center">
             <div>
               <p className="text-2xl mb-1">📋</p>
               <p className="text-sm font-medium text-gray-700">Campaña</p>
@@ -134,6 +142,11 @@ export default function HomePage() {
               <p className="text-xs text-gray-400 mt-0.5">Ejecutivo solicita despacho con control de versiones</p>
             </div>
             <div>
+              <p className="text-2xl mb-1">🚚</p>
+              <p className="text-sm font-medium text-gray-700">Despacho</p>
+              <p className="text-xs text-gray-400 mt-0.5">Almacén confirma despacho contra SOLPED vigente</p>
+            </div>
+            <div>
               <p className="text-2xl mb-1">✅</p>
               <p className="text-sm font-medium text-gray-700">Devolución</p>
               <p className="text-xs text-gray-400 mt-0.5">Cierre de campaña con control de retorno</p>
@@ -148,6 +161,7 @@ export default function HomePage() {
           <div className="flex items-center gap-4">
             <button onClick={() => abrirModal(modalEj('/campanas'))} className="text-xs text-gray-400 hover:text-blue-700">Campañas</button>
             <button onClick={() => abrirModal(modalAlm('/recepcion'))} className="text-xs text-gray-400 hover:text-blue-700">Recepción</button>
+            <button onClick={() => abrirModal(modalAlm('/despacho'))} className="text-xs text-gray-400 hover:text-blue-700">Despacho</button>
           </div>
         </div>
       </div>

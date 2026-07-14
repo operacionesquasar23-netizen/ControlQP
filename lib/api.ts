@@ -352,3 +352,60 @@ export function confirmarRecepcion(payload: ConfirmarRecepcionPayload) {
     payload as unknown as Record<string, unknown>
   );
 }
+
+// ---- Tipos: Despacho ----
+
+export interface SolpedVigente {
+  cabecera: {
+    id_solped: string;
+    codigo_campaña: string;
+    version: number;
+    estado: string;
+    fecha_despacho: string;
+    fecha_creacion: string;
+    codigo_ejecutivo: string;
+    cliente: string;
+    marca: string;
+  };
+  detalle: LineaSolped[];
+}
+
+export interface ConfirmarDespachoPayload {
+  id_solped: string;
+  codigo_almacen: string;
+  url_foto: string;
+  observaciones?: string;
+}
+
+// ---- Funciones: Despacho ----
+
+export function listarSolpedsVigentes() {
+  return getAction<SolpedVigente[]>('solpedsVigentes');
+}
+
+export function obtenerSolpedParaDespacho(idSolped: string) {
+  return getAction<SolpedVigente>('solpedDespacho', { id_solped: idSolped });
+}
+
+export function subirFotoDespacho(
+  idSolped: string,
+  codigoCampaña: string,
+  base64Data: string,
+  mimeType: string,
+  nombreArchivo: string
+) {
+  return postAction<string>('subirFotoDespacho', {
+    id_solped: idSolped,
+    codigo_campaña: codigoCampaña,
+    base64Data,
+    mimeType,
+    nombreArchivo,
+  });
+}
+
+export function confirmarDespacho(payload: ConfirmarDespachoPayload) {
+  return postAction<{ id_despacho: string }>(
+    'confirmarDespacho',
+    payload as unknown as Record<string, unknown>
+  );
+}
