@@ -23,11 +23,20 @@ const MODULOS = [
     desc: 'Confirma el despacho de una SOLPED vigente con foto.',
     link: 'Ir a despachos →',
   },
+  {
+  href : '/devolucion',
+  icon : '↩️',
+  color: 'green',
+  titulo: 'Devoluciones',
+  desc  : 'Confirma el retorno de elementos con foto.',
+  link  : 'Ver devoluciones →',
+  },
 ];
 
 const COLORES: Record<string, string> = {
   purple: 'bg-purple-50 group-hover:bg-purple-100 text-purple-700',
   orange: 'bg-orange-50 group-hover:bg-orange-100 text-orange-700',
+  green: 'bg-green-50 group-hover:bg-green-100 text-orange-700',
 };
 
 export default function AlmacenPage() {

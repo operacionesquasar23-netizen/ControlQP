@@ -31,12 +31,21 @@ const MODULOS = [
     desc: 'Solicitudes de despacho con control de versiones.',
     link: 'Ir al formulario →',
   },
+  {
+  href : '/devolucion/nueva',
+  icon : '↩️',
+  color: 'purple',
+  titulo: 'Devolución',
+  desc  : 'Solicita el retorno de elementos despachados.',
+  link  : 'Crear solicitud →',
+  },
 ];
 
 const COLORES: Record<string, string> = {
   blue:  'bg-blue-50 group-hover:bg-blue-100 text-blue-700',
   green: 'bg-green-50 group-hover:bg-green-100 text-green-700',
   amber: 'bg-amber-50 group-hover:bg-amber-100 text-amber-700',
+  purple: 'bg-purple-50 group-hover:bg-purple-100 text-amber-700',
 };
 
 export default function ComercialPage() {

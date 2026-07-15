@@ -409,3 +409,111 @@ export function confirmarDespacho(payload: ConfirmarDespachoPayload) {
     payload as unknown as Record<string, unknown>
   );
 }
+
+// ---- Tipos: Devolución ----
+
+export interface DespachoParaDevolucion {
+  cabecera: {
+    id_despacho: string;
+    codigo_campaña: string;
+    fecha: string;
+    despachado_por: string;
+    cliente: string;
+    marca: string;
+  };
+  detalle: {
+    id_despacho: string;
+    nombre_lugar: string;
+    nombre_producto: string;
+    cantidad_despachada: number;
+  }[];
+}
+
+export interface LineaDevolucion {
+  nombre_lugar: string;
+  nombre_producto: string;
+  cantidad_despachada: number;
+  cantidad_devuelta: number;
+}
+
+export interface DevolucionPendiente {
+  cabecera: {
+    id_devolucion: string;
+    id_despacho: string;
+    codigo_campaña: string;
+    codigo_ejecutivo: string;
+    fecha_solicitud: string;
+    estado: string;
+    cliente: string;
+    marca: string;
+  };
+  detalle: LineaDevolucion[];
+}
+
+export interface CrearDevolucionPayload {
+  id_despacho: string;
+  codigo_ejecutivo: string;
+  lineas: LineaDevolucion[];
+}
+
+export interface ConfirmarDevolucionPayload {
+  id_devolucion: string;
+  codigo_almacen: string;
+  url_foto: string;
+  observaciones?: string;
+}
+
+// ---- Funciones: Devolución ----
+
+export function listarDespachosDeCampaña(codigoEjecutivo: string) {
+  return getAction<DespachoParaDevolucion[]>('despachosDeCampaña', {
+    codigo_ejecutivo: codigoEjecutivo,
+  });
+}
+
+export function obtenerDespachoParaDevolucion(idDespacho: string, codigoEjecutivo: string) {
+  return getAction<DespachoParaDevolucion>('despachoParaDevolucion', {
+    id_despacho: idDespacho,
+    codigo_ejecutivo: codigoEjecutivo,
+  });
+}
+
+export function listarDevolucionesPendientes() {
+  return getAction<DevolucionPendiente[]>('devolucionesPendientes');
+}
+
+export function obtenerDevolucionParaConfirmar(idDevolucion: string) {
+  return getAction<DevolucionPendiente>('devolucionParaConfirmar', {
+    id_devolucion: idDevolucion,
+  });
+}
+
+export function crearSolicitudDevolucion(payload: CrearDevolucionPayload) {
+  return postAction<{ id_devolucion: string }>(
+    'crearSolicitudDevolucion',
+    payload as unknown as Record<string, unknown>
+  );
+}
+
+export function subirFotoDevolucion(
+  idDevolucion: string,
+  codigoCampaña: string,
+  base64Data: string,
+  mimeType: string,
+  nombreArchivo: string
+) {
+  return postAction<string>('subirFotoDevolucion', {
+    id_devolucion: idDevolucion,
+    codigo_campaña: codigoCampaña,
+    base64Data,
+    mimeType,
+    nombreArchivo,
+  });
+}
+
+export function confirmarDevolucion(payload: ConfirmarDevolucionPayload) {
+  return postAction<{ confirmado: boolean }>(
+    'confirmarDevolucion',
+    payload as unknown as Record<string, unknown>
+  );
+}
