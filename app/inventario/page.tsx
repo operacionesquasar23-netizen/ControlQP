@@ -16,7 +16,6 @@ export default function InventarioPage() {
     obtenerInventario()
       .then((data) => {
         setCampañas(data);
-        // Expandir todas por defecto
         setExpandidas(new Set(data.map((c) => c.codigo_campaña)));
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Error cargando inventario.'))
@@ -41,11 +40,6 @@ export default function InventarioPage() {
     );
   });
 
-  // Totales globales
-  const totalStock     = campañas.reduce((s, c) => s + c.productos.reduce((a, p) => a + p.stock, 0), 0);
-  const totalRecibido  = campañas.reduce((s, c) => s + c.productos.reduce((a, p) => a + p.recibido, 0), 0);
-  const totalDespachado = campañas.reduce((s, c) => s + c.productos.reduce((a, p) => a + p.despachado, 0), 0);
-
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
@@ -63,31 +57,13 @@ export default function InventarioPage() {
 
       <main className="max-w-5xl mx-auto px-4 py-6">
 
-        {/* KPIs globales */}
-        {!cargando && !error && (
-          <div className="grid grid-cols-3 gap-4 mb-6 animate-fade-slide-up">
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-center">
-              <p className="text-3xl font-bold text-gray-900">{totalStock}</p>
-              <p className="text-xs text-gray-400 mt-1">En stock</p>
-            </div>
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-center">
-              <p className="text-3xl font-bold text-blue-700">{totalRecibido}</p>
-              <p className="text-xs text-gray-400 mt-1">Total recibido</p>
-            </div>
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-center">
-              <p className="text-3xl font-bold text-amber-600">{totalDespachado}</p>
-              <p className="text-xs text-gray-400 mt-1">Total despachado</p>
-            </div>
-          </div>
-        )}
-
         {/* Buscador */}
         <input
           type="text"
           placeholder="Buscar campaña, cliente, producto…"
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
-          className="w-full h-10 rounded-xl border border-gray-200 px-4 text-sm mb-5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white animate-fade-slide-up delay-75"
+          className="w-full h-10 rounded-xl border border-gray-200 px-4 text-sm mb-5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white animate-fade-slide-up"
         />
 
         {cargando && (
@@ -110,10 +86,9 @@ export default function InventarioPage() {
         {/* Lista de campañas */}
         <div className="space-y-4">
           {campañasFiltradas.map((campaña, ci) => {
-            const expandida   = expandidas.has(campaña.codigo_campaña);
-            const stockTotal  = campaña.productos.reduce((s, p) => s + p.stock, 0);
-            const conStock    = campaña.productos.filter((p) => p.stock > 0).length;
-            const sinStock    = campaña.productos.filter((p) => p.stock === 0).length;
+            const expandida = expandidas.has(campaña.codigo_campaña);
+            const conStock  = campaña.productos.filter((p) => p.stock > 0).length;
+            const sinStock  = campaña.productos.filter((p) => p.stock === 0).length;
 
             return (
               <div
@@ -140,13 +115,7 @@ export default function InventarioPage() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4 shrink-0 ml-4">
-                    <div className="text-right hidden sm:block">
-                      <p className="text-xs text-gray-400">En stock</p>
-                      <p className={`text-lg font-bold ${stockTotal > 0 ? 'text-gray-900' : 'text-gray-300'}`}>
-                        {stockTotal}
-                      </p>
-                    </div>
+                  <div className="flex items-center gap-3 shrink-0 ml-4">
                     <div className="flex gap-2 text-xs">
                       {conStock > 0 && (
                         <span className="bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">
@@ -169,7 +138,7 @@ export default function InventarioPage() {
                 {expandida && (
                   <div className="border-t border-gray-50">
                     {campaña.productos.length === 0 ? (
-                      <p className="text-sm text-gray-400 text-center py-6">Sin productos registrados.</p>
+                      <p className="text-sm text-gray-400 text-center py-6">Sin movimientos registrados.</p>
                     ) : (
                       <table className="w-full">
                         <thead>
@@ -184,10 +153,7 @@ export default function InventarioPage() {
                         </thead>
                         <tbody>
                           {campaña.productos.map((p, pi) => (
-                            <tr
-                              key={pi}
-                              className="border-t border-gray-50 hover:bg-gray-50/50 transition-colors"
-                            >
+                            <tr key={pi} className="border-t border-gray-50 hover:bg-gray-50/50 transition-colors">
                               <td className="px-6 py-3">
                                 <p className="text-sm text-gray-900">{p.nombre_producto}</p>
                               </td>
@@ -202,19 +168,14 @@ export default function InventarioPage() {
                               </td>
                               <td className="px-3 py-3 text-center">
                                 <span className={`text-sm font-bold px-2 py-0.5 rounded-lg ${
-                                  p.stock > 0
-                                    ? 'text-green-700 bg-green-50'
-                                    : 'text-gray-400 bg-gray-50'
+                                  p.stock > 0 ? 'text-green-700 bg-green-50' : 'text-gray-400 bg-gray-50'
                                 }`}>
                                   {p.stock}
                                 </span>
                               </td>
                               <td className="px-3 py-3 pr-6 text-center">
                                 {p.url_foto ? (
-                                  <button
-                                    onClick={() => setFotoAmpliada(p.url_foto)}
-                                    className="inline-block"
-                                  >
+                                  <button onClick={() => setFotoAmpliada(p.url_foto)} className="inline-block">
                                     <img
                                       src={p.url_foto}
                                       alt={p.nombre_producto}
@@ -228,25 +189,6 @@ export default function InventarioPage() {
                             </tr>
                           ))}
                         </tbody>
-                        {/* Totales de campaña */}
-                        <tfoot>
-                          <tr className="bg-gray-50 border-t border-gray-100">
-                            <td className="px-6 py-2 text-xs font-semibold text-gray-500">Total campaña</td>
-                            <td className="px-3 py-2 text-center text-xs font-semibold text-blue-700">
-                              {campaña.productos.reduce((s, p) => s + p.recibido, 0)}
-                            </td>
-                            <td className="px-3 py-2 text-center text-xs font-semibold text-amber-600">
-                              {campaña.productos.reduce((s, p) => s + p.despachado, 0)}
-                            </td>
-                            <td className="px-3 py-2 text-center text-xs font-semibold text-purple-600">
-                              {campaña.productos.reduce((s, p) => s + p.devuelto, 0)}
-                            </td>
-                            <td className="px-3 py-2 text-center text-xs font-bold text-green-700">
-                              {stockTotal}
-                            </td>
-                            <td />
-                          </tr>
-                        </tfoot>
                       </table>
                     )}
                   </div>
