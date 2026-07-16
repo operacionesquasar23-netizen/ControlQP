@@ -517,3 +517,30 @@ export function confirmarDevolucion(payload: ConfirmarDevolucionPayload) {
     payload as unknown as Record<string, unknown>
   );
 }
+
+// ---- Tipos: Inventario ----
+
+export interface ProductoInventario {
+  nombre_producto: string;
+  recibido: number;
+  despachado: number;
+  devuelto: number;
+  stock: number;
+  url_foto: string;
+}
+
+export interface CampañaInventario {
+  codigo_campaña: string;
+  cliente: string;
+  marca: string;
+  estado: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+  productos: ProductoInventario[];
+}
+
+// ---- Funciones: Inventario ----
+
+export function obtenerInventario() {
+  return getAction<CampañaInventario[]>('inventario');
+}

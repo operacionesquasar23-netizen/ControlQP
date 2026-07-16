@@ -17,7 +17,6 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [saliendo, setSaliendo] = useState(false);
 
-  // Si ya tiene sesión activa, redirigir directo al portal
   useEffect(() => {
     const sesion = obtenerSesion();
     if (sesion) {
@@ -25,7 +24,7 @@ export default function HomePage() {
     }
   }, [router]);
 
-  function elegirRol(rol: RolElegido) {
+  function elegirRol(rol: 'comercial' | 'almacen') {
     setCodigo('');
     setError(null);
     setRolElegido(rol);
@@ -84,9 +83,10 @@ export default function HomePage() {
       </div>
 
       {/* Tarjetas de acceso */}
-      <div className="max-w-2xl mx-auto px-4 -mt-12 pb-16 w-full">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div className="max-w-4xl mx-auto px-4 -mt-12 pb-16 w-full">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
 
+          {/* Comercial */}
           <button
             onClick={() => elegirRol('comercial')}
             className="animate-fade-slide-up delay-75 bg-white rounded-2xl border-2 border-transparent hover:border-blue-300 shadow-sm hover:shadow-lg p-8 text-left transition-all duration-200 hover:-translate-y-1 group"
@@ -97,6 +97,7 @@ export default function HomePage() {
             <span className="text-sm font-semibold text-blue-700 group-hover:text-blue-800">Ingresar como comercial →</span>
           </button>
 
+          {/* Almacén */}
           <button
             onClick={() => elegirRol('almacen')}
             className="animate-fade-slide-up delay-150 bg-white rounded-2xl border-2 border-transparent hover:border-orange-300 shadow-sm hover:shadow-lg p-8 text-left transition-all duration-200 hover:-translate-y-1 group"
@@ -107,16 +108,27 @@ export default function HomePage() {
             <span className="text-sm font-semibold text-orange-700 group-hover:text-orange-800">Ingresar como almacén →</span>
           </button>
 
+          {/* Inventario — acceso libre */}
+          <a
+            href="/inventario"
+            className="animate-fade-slide-up delay-225 bg-white rounded-2xl border-2 border-transparent hover:border-green-300 shadow-sm hover:shadow-lg p-8 text-left transition-all duration-200 hover:-translate-y-1 group block"
+          >
+            <div className="w-14 h-14 bg-green-50 rounded-2xl flex items-center justify-center text-3xl mb-5 group-hover:bg-green-100 transition-colors">📊</div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Inventario</h2>
+            <p className="text-sm text-gray-500 mb-5">Stock en tiempo real por campaña y producto.</p>
+            <span className="text-sm font-semibold text-green-700 group-hover:text-green-800">Ver inventario →</span>
+          </a>
+
         </div>
 
         {/* Flujo */}
-        <div className="mt-8 bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-5 animate-fade-slide-up delay-225">
+        <div className="mt-8 bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-5 animate-fade-slide-up delay-300">
           <div className="grid grid-cols-5 gap-3 text-center">
             {[
-              { icon: '📋', label: 'Campaña' },
-              { icon: '📥', label: 'Ingreso' },
-              { icon: '🧾', label: 'SOLPED' },
-              { icon: '🚚', label: 'Despacho' },
+              { icon: '📋', label: 'Campaña'    },
+              { icon: '📥', label: 'Ingreso'    },
+              { icon: '🧾', label: 'SOLPED'     },
+              { icon: '🚚', label: 'Despacho'   },
               { icon: '↩️', label: 'Devolución' },
             ].map((paso, i) => (
               <div key={i}>
@@ -144,7 +156,6 @@ export default function HomePage() {
               Acceso {rolElegido === 'comercial' ? 'Comercial' : 'Almacén'}
             </h2>
             <p className="text-sm text-gray-500 mb-5">Ingresa tu código de acceso para continuar.</p>
-
             <form onSubmit={manejarIngresar}>
               <label className="text-xs text-gray-400 block mb-1">Código de acceso</label>
               <div className="flex gap-2 mb-1">
@@ -166,7 +177,6 @@ export default function HomePage() {
               </div>
               {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
             </form>
-
             <button
               onClick={() => setRolElegido(null)}
               className="mt-4 text-xs text-gray-400 hover:text-gray-600 w-full text-center transition-colors"
