@@ -10,18 +10,17 @@ type Pestaña = 'stock' | 'ingresos' | 'despachos' | 'devoluciones';
 
 export default function ExpedientePage({ params }: { params: { codigo: string } }) {
   const router = useRouter();
-  const [codigo, setCodigo] = useState('');
   const [listo, setListo] = useState(false);
   const [expediente, setExpediente] = useState<ExpedienteCampaña | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pestaña, setPestaña] = useState<Pestaña>('stock');
   const [saliendo, setSaliendo] = useState(false);
+  const [fotoAmpliada, setFotoAmpliada] = useState<string | null>(null);
 
   useEffect(() => {
     const sesion = obtenerSesion();
     if (!sesion || sesion.rol !== 'comercial') { router.replace('/'); return; }
-    setCodigo(sesion.codigo);
     setListo(true);
     obtenerExpedienteCampaña(params.codigo, sesion.codigo)
       .then(setExpediente)
@@ -32,10 +31,10 @@ export default function ExpedientePage({ params }: { params: { codigo: string } 
   if (!listo) return null;
 
   const PESTAÑAS: { key: Pestaña; label: string; icon: string }[] = [
-    { key: 'stock',        label: 'Stock',       icon: '📦' },
-    { key: 'ingresos',     label: 'Ingresos',    icon: '📥' },
-    { key: 'despachos',    label: 'Despachos',   icon: '🚚' },
-    { key: 'devoluciones', label: 'Devoluciones',icon: '↩️' },
+    { key: 'stock',        label: 'Stock',        icon: '📦' },
+    { key: 'ingresos',     label: 'Ingresos',     icon: '📥' },
+    { key: 'despachos',    label: 'Despachos',    icon: '🚚' },
+    { key: 'devoluciones', label: 'Devoluciones', icon: '↩️' },
   ];
 
   return (
@@ -152,6 +151,7 @@ export default function ExpedientePage({ params }: { params: { codigo: string } 
                           <th className="text-center text-xs text-gray-400 font-medium px-3 py-2">Esperado</th>
                           <th className="text-center text-xs text-gray-400 font-medium px-3 py-2">Recibido</th>
                           <th className="text-center text-xs text-gray-400 font-medium px-3 py-2">Estado</th>
+                          <th className="text-center text-xs text-gray-400 font-medium px-3 py-2 pr-6">Foto</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -170,6 +170,19 @@ export default function ExpedientePage({ params }: { params: { codigo: string } 
                               </td>
                               <td className="px-3 py-2.5 text-center text-xs">
                                 {d.cantidad_recibida === null ? '⏳' : diff ? '⚠️ Parcial' : '✅'}
+                              </td>
+                              <td className="px-3 py-2.5 pr-6 text-center">
+                                {d.url_foto ? (
+                                  <button onClick={() => setFotoAmpliada(d.url_foto)}>
+                                    <img
+                                      src={d.url_foto}
+                                      alt={d.nombre_producto}
+                                      className="w-10 h-10 object-cover rounded-lg hover:scale-110 transition-transform border border-gray-100"
+                                    />
+                                  </button>
+                                ) : (
+                                  <span className="text-gray-200">🖼</span>
+                                )}
                               </td>
                             </tr>
                           );
@@ -229,10 +242,21 @@ export default function ExpedientePage({ params }: { params: { codigo: string } 
                       );
                     })()}
 
-                    {/* Info despacho */}
+                    {/* Info despacho + foto */}
                     {s.despacho && (
-                      <div className="px-6 py-3 bg-green-50 border-t border-green-100 text-xs text-green-700">
-                        🚚 Despachado el {formatearFecha(s.despacho.fecha)} por {s.despacho.despachado_por} · {s.despacho.id_despacho}
+                      <div className="px-6 py-3 bg-green-50 border-t border-green-100 flex items-center justify-between">
+                        <p className="text-xs text-green-700">
+                          🚚 Despachado el {formatearFecha(s.despacho.fecha)} por {s.despacho.despachado_por} · {s.despacho.id_despacho}
+                        </p>
+                        {s.despacho.url_foto && (
+                          <button onClick={() => setFotoAmpliada(s.despacho!.url_foto)}>
+                            <img
+                              src={s.despacho.url_foto}
+                              alt="Foto despacho"
+                              className="w-10 h-10 object-cover rounded-lg hover:scale-110 transition-transform border border-green-200 ml-3"
+                            />
+                          </button>
+                        )}
                       </div>
                     )}
                     {!s.despacho && s.estado === 'vigente' && (
@@ -291,11 +315,22 @@ export default function ExpedientePage({ params }: { params: { codigo: string } 
                       );
                     })()}
 
-                    {/* Info confirmación */}
+                    {/* Info confirmación + foto */}
                     {d.confirmacion && (
-                      <div className="px-6 py-3 bg-green-50 border-t border-green-100 text-xs text-green-700">
-                        ✅ Confirmada el {formatearFecha(d.confirmacion.fecha)} por {d.confirmacion.recibido_por}
-                        {d.confirmacion.observaciones && ` · ${d.confirmacion.observaciones}`}
+                      <div className="px-6 py-3 bg-green-50 border-t border-green-100 flex items-center justify-between">
+                        <p className="text-xs text-green-700">
+                          ✅ Confirmada el {formatearFecha(d.confirmacion.fecha)} por {d.confirmacion.recibido_por}
+                          {d.confirmacion.observaciones && ` · ${d.confirmacion.observaciones}`}
+                        </p>
+                        {d.confirmacion.url_foto && (
+                          <button onClick={() => setFotoAmpliada(d.confirmacion!.url_foto)}>
+                            <img
+                              src={d.confirmacion.url_foto}
+                              alt="Foto devolución"
+                              className="w-10 h-10 object-cover rounded-lg hover:scale-110 transition-transform border border-green-200 ml-3"
+                            />
+                          </button>
+                        )}
                       </div>
                     )}
                     {!d.confirmacion && (
@@ -310,6 +345,22 @@ export default function ExpedientePage({ params }: { params: { codigo: string } 
           </>
         )}
       </main>
+
+      {/* Modal foto ampliada */}
+      {fotoAmpliada && (
+        <div
+          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 px-4 animate-fade-in"
+          onClick={() => setFotoAmpliada(null)}
+        >
+          <div className="relative max-w-2xl w-full animate-scale-in" onClick={(e) => e.stopPropagation()}>
+            <img src={fotoAmpliada} alt="Foto" className="w-full rounded-2xl shadow-2xl" />
+            <button
+              onClick={() => setFotoAmpliada(null)}
+              className="absolute top-3 right-3 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center text-gray-700 hover:bg-white transition-colors"
+            >✕</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

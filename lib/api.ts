@@ -636,3 +636,28 @@ export function obtenerExpedienteCampaña(codigoCampaña: string, codigoEjecutiv
     codigo_ejecutivo: codigoEjecutivo,
   });
 }
+
+// En LineaIngresoSeguimiento agrega url_foto:
+export interface LineaIngresoSeguimiento {
+  nombre_producto: string;
+  cantidad_esperada: number;
+  cantidad_recibida: number | null;
+  url_foto: string; // 👈 NUEVO
+}
+
+// En DespachoSeguimiento agrega url_foto:
+export interface DespachoSeguimiento {
+  id_despacho: string;
+  fecha: string;
+  despachado_por: string;
+  url_foto: string; // 👈 NUEVO
+  detalle: LineaSolpedSeguimiento[];
+}
+
+// En ConfirmacionDevolucion agrega url_foto:
+export interface ConfirmacionDevolucion {
+  fecha: string;
+  recibido_por: string;
+  observaciones: string;
+  url_foto: string; // 👈 NUEVO
+}
