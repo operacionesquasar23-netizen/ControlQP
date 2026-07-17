@@ -39,6 +39,14 @@ const MODULOS = [
   desc  : 'Solicita el retorno de elementos despachados.',
   link  : 'Crear solicitud →',
   },
+  {
+  href  : '/seguimiento',
+  icon  : '🔍',
+  color : 'indigo',
+  titulo: 'Seguimiento',
+  desc  : 'Expediente completo de tus campañas: ingresos, despachos y devoluciones.',
+  link  : 'Ver seguimiento →',
+  },
 ];
 
 const COLORES: Record<string, string> = {
@@ -46,6 +54,7 @@ const COLORES: Record<string, string> = {
   green: 'bg-green-50 group-hover:bg-green-100 text-green-700',
   amber: 'bg-amber-50 group-hover:bg-amber-100 text-amber-700',
   purple: 'bg-purple-50 group-hover:bg-purple-100 text-amber-700',
+  indigo: 'bg-indigo-50 group-hover:bg-indigo-100 text-indigo-700',
 };
 
 export default function ComercialPage() {

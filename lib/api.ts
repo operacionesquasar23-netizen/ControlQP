@@ -544,3 +544,95 @@ export interface CampañaInventario {
 export function obtenerInventario() {
   return getAction<CampañaInventario[]>('inventario');
 }
+
+// ---- Tipos: Seguimiento ----
+
+export interface LineaIngresoSeguimiento {
+  nombre_producto: string;
+  cantidad_esperada: number;
+  cantidad_recibida: number | null;
+}
+
+export interface FichaSeguimiento {
+  id_ficha: string;
+  fecha_envio: string;
+  estado: string;
+  detalle: LineaIngresoSeguimiento[];
+}
+
+export interface LineaSolpedSeguimiento {
+  nombre_lugar: string;
+  nombre_producto: string;
+  cantidad_solicitada: number;
+}
+
+export interface DespachoSeguimiento {
+  id_despacho: string;
+  fecha: string;
+  despachado_por: string;
+  detalle: LineaSolpedSeguimiento[];
+}
+
+export interface SolpedSeguimiento {
+  id_solped: string;
+  version: number;
+  estado: string;
+  fecha_despacho: string;
+  fecha_creacion: string;
+  despacho: DespachoSeguimiento | null;
+  detalle: LineaSolpedSeguimiento[];
+}
+
+export interface LineaDevolucionSeguimiento {
+  nombre_lugar: string;
+  nombre_producto: string;
+  cantidad_solicitada: number;
+  confirmado: boolean;
+}
+
+export interface ConfirmacionDevolucion {
+  fecha: string;
+  recibido_por: string;
+  observaciones: string;
+}
+
+export interface DevolucionSeguimiento {
+  id_devolucion: string;
+  id_despacho: string;
+  fecha_solicitud: string;
+  estado: string;
+  confirmacion: ConfirmacionDevolucion | null;
+  detalle: LineaDevolucionSeguimiento[];
+}
+
+export interface StockSeguimiento {
+  nombre_producto: string;
+  recibido: number;
+  despachado: number;
+  devuelto: number;
+  stock: number;
+}
+
+export interface ExpedienteCampaña {
+  cabecera: {
+    codigo_campaña: string;
+    cliente: string;
+    marca: string;
+    estado: string;
+    fecha_inicio: string;
+    fecha_fin: string;
+  };
+  ingresos: FichaSeguimiento[];
+  solicitudesDespacho: SolpedSeguimiento[];
+  solicitudesDevolucion: DevolucionSeguimiento[];
+  stock: StockSeguimiento[];
+}
+
+// ---- Funciones: Seguimiento ----
+
+export function obtenerExpedienteCampaña(codigoCampaña: string, codigoEjecutivo: string) {
+  return getAction<ExpedienteCampaña>('expedienteCampaña', {
+    codigo_campaña  : codigoCampaña,
+    codigo_ejecutivo: codigoEjecutivo,
+  });
+}
