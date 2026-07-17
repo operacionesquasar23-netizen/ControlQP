@@ -15,6 +15,7 @@ export default function DevolucionPage() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saliendo, setSaliendo] = useState(false);
+  const [busqueda, setBusqueda] = useState('');
 
   useEffect(() => {
     const sesion = obtenerSesion();
@@ -33,6 +34,17 @@ export default function DevolucionPage() {
     setTimeout(() => router.push(href + '?codigo_almacen=' + encodeURIComponent(codigo)), 250);
   }
 
+  const devolucionesFiltradas = devoluciones.filter((d) => {
+    const q = busqueda.toLowerCase();
+    return (
+      d.cabecera.id_devolucion.toLowerCase().includes(q) ||
+      d.cabecera.id_despacho.toLowerCase().includes(q) ||
+      d.cabecera.cliente.toLowerCase().includes(q) ||
+      d.cabecera.marca.toLowerCase().includes(q) ||
+      d.cabecera.codigo_campaña.toLowerCase().includes(q)
+    );
+  });
+
   if (!listo) return null;
 
   return (
@@ -48,25 +60,37 @@ export default function DevolucionPage() {
       </div>
 
       <main className="max-w-3xl mx-auto px-4 py-6">
-        {cargando && <p className="text-sm text-gray-400 text-center py-12">Cargando devoluciones…</p>}
+
+        {/* Buscador */}
+        <input
+          type="text"
+          placeholder="Buscar por devolución, despacho, cliente, campaña…"
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          className="w-full h-10 rounded-xl border border-gray-200 px-4 text-sm mb-5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white animate-fade-slide-up"
+        />
+
+        {cargando && <p className="text-sm text-gray-400 text-center py-12 animate-pulse-soft">Cargando devoluciones…</p>}
 
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-800 text-sm">{error}</div>
         )}
 
-        {!cargando && !error && devoluciones.length === 0 && (
+        {!cargando && !error && devolucionesFiltradas.length === 0 && (
           <div className="text-center py-12">
             <p className="text-3xl mb-2">↩️</p>
-            <p className="text-sm text-gray-400">No hay devoluciones pendientes.</p>
+            <p className="text-sm text-gray-400">
+              {busqueda ? 'No se encontraron resultados.' : 'No hay devoluciones pendientes.'}
+            </p>
           </div>
         )}
 
         <div className="space-y-3">
-          {devoluciones.map((d, i) => (
+          {devolucionesFiltradas.map((d, i) => (
             <button
               key={d.cabecera.id_devolucion}
               onClick={() => irA('/devolucion/' + d.cabecera.id_devolucion)}
-              className={`animate-fade-slide-up delay-${i * 75} w-full bg-white rounded-2xl border-2 border-transparent hover:border-purple-200 shadow-sm hover:shadow-md p-5 text-left transition-all duration-200 hover:-translate-y-0.5`}
+              className={`animate-fade-slide-up delay-${Math.min(i * 75, 300)} w-full bg-white rounded-2xl border-2 border-transparent hover:border-purple-200 shadow-sm hover:shadow-md p-5 text-left transition-all duration-200 hover:-translate-y-0.5`}
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
