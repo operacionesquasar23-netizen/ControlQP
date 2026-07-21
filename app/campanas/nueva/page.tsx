@@ -70,47 +70,44 @@ function FormularioNuevaCampaña({ codigoEjecutivo, nombreEjecutivo }: { codigoE
 
   // ── Parseo del Excel ─────────────────────────────────────────────────────
   function manejarExcel(e: React.ChangeEvent<HTMLInputElement>) {
-    const archivo = e.target.files?.[0];
-    if (!archivo) return;
-    setErrorExcel(null);
+  const archivo = e.target.files?.[0];
+  if (!archivo) return;
+  setErrorExcel(null);
+  setExcelCargado(false);
 
-    const reader = new FileReader();
-    reader.onload = (ev) => {
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    // 👇 setTimeout para no bloquear el hilo principal
+    setTimeout(() => {
       try {
         const data  = ev.target?.result;
-        const wb    = XLSX.read(data, { type: 'array' });
+        const wb    = XLSX.read(data, { type: 'array', cellDates: true });
         const ws    = wb.Sheets[wb.SheetNames[0]];
         const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
-        // ── Cabecera (columnas A-B, filas 1-5) ──────────────────────────
-        // Fila 1: ["CODIGO CAMPAÑA:", valor]
-        // Fila 2: ["CLIENTE:", valor]
-        // Fila 3: ["MARCA:", valor]
-        // Fila 4: ["FECHA INICIO:", serial]
-        // Fila 5: ["FECHA FIN:", serial]
-
         const getCabecera = (fila: number) => String(rows[fila]?.[1] ?? '').trim();
 
-        const codigoRaw    = getCabecera(1);
-        const clienteRaw   = getCabecera(2);
-        const marcaRaw     = getCabecera(3);
-        const fechaIniRaw  = rows[4]?.[1];
-        const fechaFinRaw  = rows[5]?.[1];
+        const codigoRaw   = getCabecera(1);
+        const clienteRaw  = getCabecera(2);
+        const marcaRaw    = getCabecera(3);
+        const fechaIniRaw = rows[4]?.[1];
+        const fechaFinRaw = rows[5]?.[1];
 
-        if (!codigoRaw)  throw new Error('No se encontró el Código de campaña en el Excel.');
-        if (!clienteRaw) throw new Error('No se encontró el Cliente en el Excel.');
-        if (!marcaRaw)   throw new Error('No se encontró la Marca en el Excel.');
+        if (!codigoRaw)  throw new Error('No se encontró el Código de campaña.');
+        if (!clienteRaw) throw new Error('No se encontró el Cliente.');
+        if (!marcaRaw)   throw new Error('No se encontró la Marca.');
 
-        // Convertir serial de Excel a YYYY-MM-DD
         function serialAFecha(v: any): string {
           if (!v) return '';
+          if (v instanceof Date) {
+            const mm = String(v.getMonth() + 1).padStart(2, '0');
+            const dd = String(v.getDate()).padStart(2, '0');
+            return `${v.getFullYear()}-${mm}-${dd}`;
+          }
           if (typeof v === 'number') {
             const date = XLSX.SSF.parse_date_code(v);
-            const mm   = String(date.m).padStart(2, '0');
-            const dd   = String(date.d).padStart(2, '0');
-            return `${date.y}-${mm}-${dd}`;
+            return `${date.y}-${String(date.m).padStart(2,'0')}-${String(date.d).padStart(2,'0')}`;
           }
-          // Si ya viene como string con formato dd/mm/yyyy o yyyy-mm-dd
           const str = String(v).trim();
           if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
           const partes = str.split('/');
@@ -118,21 +115,14 @@ function FormularioNuevaCampaña({ codigoEjecutivo, nombreEjecutivo }: { codigoE
           return '';
         }
 
-        // ── Tiendas (columna D=índice 3, E=índice 4) ────────────────────
-        // Fila 0 es header ("TIENDAS", "REGION"), datos desde fila 1
         const lugaresExcel: Lugar[] = [];
         for (let r = 1; r < rows.length; r++) {
           const nombre = String(rows[r]?.[3] ?? '').trim();
           const zona   = String(rows[r]?.[4] ?? '').trim();
           if (!nombre) continue;
-          lugaresExcel.push({
-            nombre_lugar: nombre,
-            zona: zona.toLowerCase() === 'provincia' ? 'Provincia' : 'Lima',
-          });
+          lugaresExcel.push({ nombre_lugar: nombre, zona: zona.toLowerCase() === 'provincia' ? 'Provincia' : 'Lima' });
         }
 
-        // ── Productos (columna G=índice 6, H=7, I=8) ────────────────────
-        // Fila 0 es header ("PRODUCTOS", "UNIDAD", "CATEGORIA"), datos desde fila 1
         const productosExcel: Producto[] = [];
         const categoriasNuevas = new Set<string>();
         for (let r = 1; r < rows.length; r++) {
@@ -144,10 +134,9 @@ function FormularioNuevaCampaña({ codigoEjecutivo, nombreEjecutivo }: { codigoE
           if (categoria) categoriasNuevas.add(categoria);
         }
 
-        if (lugaresExcel.length === 0)  throw new Error('No se encontraron tiendas en el Excel.');
+        if (lugaresExcel.length === 0)   throw new Error('No se encontraron tiendas en el Excel.');
         if (productosExcel.length === 0) throw new Error('No se encontraron productos en el Excel.');
 
-        // ── Pre-llenar el formulario ─────────────────────────────────────
         setCodigo(codigoRaw.toUpperCase());
         setCliente(clienteRaw);
         setMarca(marcaRaw);
@@ -155,10 +144,7 @@ function FormularioNuevaCampaña({ codigoEjecutivo, nombreEjecutivo }: { codigoE
         setFechaFin(serialAFecha(fechaFinRaw));
         setLugares(lugaresExcel);
         setProductos(productosExcel);
-        setCategorias((prev) => {
-          const todas = new Set([...prev, ...categoriasNuevas]);
-          return Array.from(todas);
-        });
+        setCategorias((prev) => Array.from(new Set([...prev, ...categoriasNuevas])));
         setErrores([]);
         setExcelCargado(true);
 
@@ -166,10 +152,11 @@ function FormularioNuevaCampaña({ codigoEjecutivo, nombreEjecutivo }: { codigoE
         setErrorExcel(err instanceof Error ? err.message : 'Error leyendo el Excel.');
         setExcelCargado(false);
       }
-    };
-    reader.readAsArrayBuffer(archivo);
-    if (inputExcelRef.current) inputExcelRef.current.value = '';
-  }
+    }, 0);
+  };
+  reader.readAsArrayBuffer(archivo);
+  if (inputExcelRef.current) inputExcelRef.current.value = '';
+}
 
   function actualizarLugar(index: number, cambios: Partial<Lugar>) {
     setLugares((prev) => prev.map((l, i) => (i === index ? { ...l, ...cambios } : l)));
