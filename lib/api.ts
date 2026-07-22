@@ -522,6 +522,7 @@ export function confirmarDevolucion(payload: ConfirmarDevolucionPayload) {
 
 export interface ProductoInventario {
   nombre_producto: string;
+  unidad: string;    
   recibido: number;
   despachado: number;
   devuelto: number;

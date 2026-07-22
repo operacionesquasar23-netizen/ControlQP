@@ -1,53 +1,104 @@
 // app/inventario/page.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
+import * as XLSX from 'xlsx';
 import { obtenerInventario, formatearFecha, type CampañaInventario } from '@/lib/api';
+
+interface FilaPlana {
+  codigo_campaña: string;
+  cliente: string;
+  marca: string;
+  nombre_producto: string;
+  unidad: string;
+  recibido: number;
+  despachado: number;
+  devuelto: number;
+  stock: number;
+  url_foto: string;
+}
 
 export default function InventarioPage() {
   const [campañas, setCampañas] = useState<CampañaInventario[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState('');
-  const [expandidas, setExpandidas] = useState<Set<string>>(new Set());
   const [fotoAmpliada, setFotoAmpliada] = useState<string | null>(null);
 
   useEffect(() => {
     obtenerInventario()
-      .then((data) => {
-        setCampañas(data);
-        setExpandidas(new Set(data.map((c) => c.codigo_campaña)));
-      })
+      .then(setCampañas)
       .catch((err) => setError(err instanceof Error ? err.message : 'Error cargando inventario.'))
       .finally(() => setCargando(false));
   }, []);
 
-  function toggleExpandida(codigo: string) {
-    setExpandidas((prev) => {
-      const next = new Set(prev);
-      next.has(codigo) ? next.delete(codigo) : next.add(codigo);
-      return next;
+  // Aplanar todas las campañas en filas individuales
+  const filas: FilaPlana[] = useMemo(() => {
+    const resultado: FilaPlana[] = [];
+    campañas.forEach((c) => {
+      c.productos.forEach((p) => {
+        resultado.push({
+          codigo_campaña : c.codigo_campaña,
+          cliente        : c.cliente,
+          marca          : c.marca,
+          nombre_producto: p.nombre_producto,
+          unidad         : p.unidad,
+          recibido       : p.recibido,
+          despachado     : p.despachado,
+          devuelto       : p.devuelto,
+          stock          : p.stock,
+          url_foto       : p.url_foto,
+        });
+      });
     });
-  }
+    return resultado;
+  }, [campañas]);
 
-  const campañasFiltradas = campañas.filter((c) => {
+  const filasFiltradas = useMemo(() => {
+    if (!busqueda.trim()) return filas;
     const q = busqueda.toLowerCase();
-    return (
-      c.codigo_campaña.toLowerCase().includes(q) ||
-      c.cliente.toLowerCase().includes(q) ||
-      c.marca.toLowerCase().includes(q) ||
-      c.productos.some((p) => p.nombre_producto.toLowerCase().includes(q))
+    return filas.filter((f) =>
+      f.codigo_campaña.toLowerCase().includes(q) ||
+      f.cliente.toLowerCase().includes(q) ||
+      f.marca.toLowerCase().includes(q) ||
+      f.nombre_producto.toLowerCase().includes(q) ||
+      f.unidad.toLowerCase().includes(q)
     );
-  });
+  }, [filas, busqueda]);
+
+  function exportarExcel() {
+    const datos = filasFiltradas.map((f) => ({
+      'Código'      : f.codigo_campaña,
+      'Cliente'     : f.cliente,
+      'Marca'       : f.marca,
+      'Producto'    : f.nombre_producto,
+      'Unidad'      : f.unidad,
+      'Recibido'    : f.recibido,
+      'Despachado'  : f.despachado,
+      'Devuelto'    : f.devuelto,
+      'Stock'       : f.stock,
+    }));
+    const ws = XLSX.utils.json_to_sheet(datos);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Inventario');
+
+    // Anchos de columna
+    ws['!cols'] = [
+      { wch: 14 }, { wch: 20 }, { wch: 16 }, { wch: 30 },
+      { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 10 }, { wch: 8 },
+    ];
+
+    XLSX.writeFile(wb, `Inventario_${new Date().toISOString().slice(0,10)}.xlsx`);
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
       <div className="bg-brand text-white px-6 py-5 animate-fade-slide-down">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div>
             <h1 className="text-lg font-bold">Inventario</h1>
-            <p className="text-white/70 text-xs mt-0.5">Stock en tiempo real por campaña</p>
+            <p className="text-white/70 text-xs mt-0.5">Stock en tiempo real por campaña y producto</p>
           </div>
           <a href="/" className="text-white/70 hover:text-white text-xs border border-white/20 hover:border-white/50 rounded-lg px-3 py-1.5 transition-colors">
             ← Inicio
@@ -55,148 +106,112 @@ export default function InventarioPage() {
         </div>
       </div>
 
-      <main className="max-w-5xl mx-auto px-4 py-6">
+      <main className="max-w-7xl mx-auto px-4 py-6">
 
-        {/* Buscador */}
-        <input
-          type="text"
-          placeholder="Buscar campaña, cliente, producto…"
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-          className="w-full h-10 rounded-xl border border-gray-200 px-4 text-sm mb-5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white animate-fade-slide-up"
-        />
+        {/* Barra superior: buscador + exportar */}
+        <div className="flex gap-3 mb-5 animate-fade-slide-up">
+          <input
+            type="text"
+            placeholder="Buscar por campaña, cliente, producto, unidad…"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            className="flex-1 h-10 rounded-xl border border-gray-200 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          />
+          <button
+            onClick={exportarExcel}
+            disabled={filasFiltradas.length === 0}
+            className="flex items-center gap-2 h-10 px-4 rounded-xl border border-green-200 bg-green-50 hover:bg-green-100 text-green-700 text-sm font-semibold transition-colors disabled:opacity-40"
+          >
+            📥 Exportar Excel
+          </button>
+        </div>
 
-        {cargando && (
-          <p className="text-sm text-gray-400 text-center py-12 animate-pulse-soft">Cargando inventario…</p>
+        {/* Contador */}
+        {!cargando && !error && (
+          <p className="text-xs text-gray-400 mb-3">
+            {filasFiltradas.length} {filasFiltradas.length === 1 ? 'producto' : 'productos'}
+            {busqueda && ` — filtrando por "${busqueda}"`}
+          </p>
         )}
 
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-800 text-sm">{error}</div>
-        )}
+        {cargando && <p className="text-sm text-gray-400 text-center py-12 animate-pulse-soft">Cargando inventario…</p>}
+        {error && <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-800 text-sm">{error}</div>}
 
-        {!cargando && !error && campañasFiltradas.length === 0 && (
+        {!cargando && !error && filasFiltradas.length === 0 && (
           <div className="text-center py-12">
             <p className="text-3xl mb-2">📦</p>
-            <p className="text-sm text-gray-400">
-              {busqueda ? 'No se encontraron resultados.' : 'No hay campañas registradas.'}
-            </p>
+            <p className="text-sm text-gray-400">{busqueda ? 'No se encontraron resultados.' : 'No hay productos registrados.'}</p>
           </div>
         )}
 
-        {/* Lista de campañas */}
-        <div className="space-y-4">
-          {campañasFiltradas.map((campaña, ci) => {
-            const expandida = expandidas.has(campaña.codigo_campaña);
-            const conStock  = campaña.productos.filter((p) => p.stock > 0).length;
-            const sinStock  = campaña.productos.filter((p) => p.stock === 0).length;
-
-            return (
-              <div
-                key={campaña.codigo_campaña}
-                className={`bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-fade-slide-up delay-${Math.min(ci * 75, 300)}`}
-              >
-                {/* Cabecera campaña */}
-                <button
-                  onClick={() => toggleExpandida(campaña.codigo_campaña)}
-                  className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors text-left"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className={`w-2 h-2 rounded-full shrink-0 ${campaña.estado === 'activa' ? 'bg-green-500' : 'bg-gray-300'}`} />
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">
-                          {campaña.codigo_campaña}
-                        </span>
-                        <span className="text-sm font-semibold text-gray-900">{campaña.cliente}</span>
-                        <span className="text-xs text-gray-400">{campaña.marca}</span>
-                      </div>
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        {formatearFecha(campaña.fecha_inicio)} → {formatearFecha(campaña.fecha_fin)}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0 ml-4">
-                    <div className="flex gap-2 text-xs">
-                      {conStock > 0 && (
-                        <span className="bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">
-                          {conStock} con stock
-                        </span>
-                      )}
-                      {sinStock > 0 && (
-                        <span className="bg-gray-50 text-gray-400 px-2 py-0.5 rounded-full">
-                          {sinStock} sin stock
-                        </span>
-                      )}
-                    </div>
-                    <span className={`text-gray-400 transition-transform duration-200 ${expandida ? 'rotate-180' : ''}`}>
-                      ▾
-                    </span>
-                  </div>
-                </button>
-
-                {/* Tabla de productos */}
-                {expandida && (
-                  <div className="border-t border-gray-50">
-                    {campaña.productos.length === 0 ? (
-                      <p className="text-sm text-gray-400 text-center py-6">Sin movimientos registrados.</p>
-                    ) : (
-                      <table className="w-full">
-                        <thead>
-                          <tr className="bg-gray-50">
-                            <th className="text-left text-xs text-gray-400 font-medium px-6 py-3">Producto</th>
-                            <th className="text-center text-xs text-gray-400 font-medium px-3 py-3">Recibido</th>
-                            <th className="text-center text-xs text-gray-400 font-medium px-3 py-3">Despachado</th>
-                            <th className="text-center text-xs text-gray-400 font-medium px-3 py-3">Devuelto</th>
-                            <th className="text-center text-xs text-gray-400 font-medium px-3 py-3">Stock</th>
-                            <th className="text-center text-xs text-gray-400 font-medium px-3 py-3 pr-6">Foto</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {campaña.productos.map((p, pi) => (
-                            <tr key={pi} className="border-t border-gray-50 hover:bg-gray-50/50 transition-colors">
-                              <td className="px-6 py-3">
-                                <p className="text-sm text-gray-900">{p.nombre_producto}</p>
-                              </td>
-                              <td className="px-3 py-3 text-center">
-                                <span className="text-sm text-blue-700 font-medium">{p.recibido}</span>
-                              </td>
-                              <td className="px-3 py-3 text-center">
-                                <span className="text-sm text-amber-600 font-medium">{p.despachado}</span>
-                              </td>
-                              <td className="px-3 py-3 text-center">
-                                <span className="text-sm text-purple-600 font-medium">{p.devuelto}</span>
-                              </td>
-                              <td className="px-3 py-3 text-center">
-                                <span className={`text-sm font-bold px-2 py-0.5 rounded-lg ${
-                                  p.stock > 0 ? 'text-green-700 bg-green-50' : 'text-gray-400 bg-gray-50'
-                                }`}>
-                                  {p.stock}
-                                </span>
-                              </td>
-                              <td className="px-3 py-3 pr-6 text-center">
-                                {p.url_foto ? (
-                                  <button onClick={() => setFotoAmpliada(p.url_foto)} className="inline-block">
-                                    <img
-                                      src={p.url_foto}
-                                      alt={p.nombre_producto}
-                                      className="w-10 h-10 object-cover rounded-lg hover:scale-110 transition-transform cursor-pointer border border-gray-100"
-                                    />
-                                  </button>
-                                ) : (
-                                  <span className="text-gray-200 text-lg">🖼</span>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+        {/* Tabla */}
+        {!cargando && !error && filasFiltradas.length > 0 && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-fade-slide-up delay-75">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-100">
+                    <th className="text-left text-xs text-gray-400 font-medium px-4 py-3 whitespace-nowrap">Código</th>
+                    <th className="text-left text-xs text-gray-400 font-medium px-4 py-3 whitespace-nowrap">Cliente</th>
+                    <th className="text-left text-xs text-gray-400 font-medium px-4 py-3 whitespace-nowrap">Producto</th>
+                    <th className="text-left text-xs text-gray-400 font-medium px-4 py-3 whitespace-nowrap">Unidad</th>
+                    <th className="text-center text-xs text-gray-400 font-medium px-4 py-3 whitespace-nowrap">Recibido</th>
+                    <th className="text-center text-xs text-gray-400 font-medium px-4 py-3 whitespace-nowrap">Despachado</th>
+                    <th className="text-center text-xs text-gray-400 font-medium px-4 py-3 whitespace-nowrap">Devuelto</th>
+                    <th className="text-center text-xs text-gray-400 font-medium px-4 py-3 whitespace-nowrap">Stock</th>
+                    <th className="text-center text-xs text-gray-400 font-medium px-4 py-3 pr-5 whitespace-nowrap">Foto</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filasFiltradas.map((f, i) => {
+                    const mostrarCodigo = i === 0 || filasFiltradas[i - 1].codigo_campaña !== f.codigo_campaña;
+                    return (
+                      <tr
+                        key={`${f.codigo_campaña}-${f.nombre_producto}-${i}`}
+                        className={`border-t border-gray-50 hover:bg-gray-50/50 transition-colors ${mostrarCodigo && i !== 0 ? 'border-t-2 border-gray-100' : ''}`}
+                      >
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          {mostrarCodigo ? (
+                            <div>
+                              <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">{f.codigo_campaña}</span>
+                              <p className="text-xs text-gray-400 mt-0.5">{f.marca}</p>
+                            </div>
+                          ) : null}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
+                          {mostrarCodigo ? f.cliente : ''}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900">{f.nombre_producto}</td>
+                        <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">{f.unidad}</td>
+                        <td className="px-4 py-3 text-center text-sm text-blue-700 font-medium">{f.recibido}</td>
+                        <td className="px-4 py-3 text-center text-sm text-amber-600 font-medium">{f.despachado}</td>
+                        <td className="px-4 py-3 text-center text-sm text-purple-600 font-medium">{f.devuelto}</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`text-sm font-bold px-2 py-0.5 rounded-lg ${f.stock > 0 ? 'text-green-700 bg-green-50' : 'text-gray-400 bg-gray-50'}`}>
+                            {f.stock}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 pr-5 text-center">
+                          {f.url_foto ? (
+                            <button onClick={() => setFotoAmpliada(f.url_foto)}>
+                              <img
+                                src={f.url_foto}
+                                alt={f.nombre_producto}
+                                className="w-10 h-10 object-cover rounded-lg hover:scale-110 transition-transform border border-gray-100 mx-auto"
+                              />
+                            </button>
+                          ) : (
+                            <span className="text-gray-200">🖼</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Modal foto ampliada */}
