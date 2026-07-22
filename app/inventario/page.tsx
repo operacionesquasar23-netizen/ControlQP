@@ -24,6 +24,7 @@ export default function InventarioPage() {
   const [error, setError] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState('');
   const [fotoAmpliada, setFotoAmpliada] = useState<string | null>(null);
+  const [soloConStock, setSoloConStock] = useState(false);
 
   useEffect(() => {
     obtenerInventario()
@@ -55,16 +56,19 @@ export default function InventarioPage() {
   }, [campañas]);
 
   const filasFiltradas = useMemo(() => {
-    if (!busqueda.trim()) return filas;
-    const q = busqueda.toLowerCase();
-    return filas.filter((f) =>
-      f.codigo_campaña.toLowerCase().includes(q) ||
-      f.cliente.toLowerCase().includes(q) ||
-      f.marca.toLowerCase().includes(q) ||
-      f.nombre_producto.toLowerCase().includes(q) ||
-      f.unidad.toLowerCase().includes(q)
-    );
-  }, [filas, busqueda]);
+    let resultado = busqueda.trim()
+      ? filas.filter((f) =>
+          f.codigo_campaña.toLowerCase().includes(q) ||
+          f.cliente.toLowerCase().includes(q) ||
+          f.marca.toLowerCase().includes(q) ||
+          f.nombre_producto.toLowerCase().includes(q) ||
+          f.unidad.toLowerCase().includes(q)
+        )
+      : filas;
+
+    if (soloConStock) resultado = resultado.filter((f) => f.stock > 0);
+    return resultado;
+  }, [filas, busqueda, soloConStock]);
 
   function exportarExcel() {
     const datos = filasFiltradas.map((f) => ({
@@ -117,6 +121,16 @@ export default function InventarioPage() {
             onChange={(e) => setBusqueda(e.target.value)}
             className="flex-1 h-10 rounded-xl border border-gray-200 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
           />
+          <button
+            onClick={() => setSoloConStock((prev) => !prev)}
+            className={`h-10 px-4 rounded-xl border text-sm font-semibold transition-colors whitespace-nowrap ${
+              soloConStock
+                ? 'bg-blue-700 text-white border-blue-700'
+                : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+            }`}
+          >
+            {soloConStock ? '✓ Con stock' : 'Con stock'}
+          </button>
           <button
             onClick={exportarExcel}
             disabled={filasFiltradas.length === 0}
