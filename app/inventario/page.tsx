@@ -56,15 +56,16 @@ export default function InventarioPage() {
   }, [campañas]);
 
   const filasFiltradas = useMemo(() => {
-    let resultado = busqueda.trim()
-      ? filas.filter((f) =>
-          f.codigo_campaña.toLowerCase().includes(q) ||
-          f.cliente.toLowerCase().includes(q) ||
-          f.marca.toLowerCase().includes(q) ||
-          f.nombre_producto.toLowerCase().includes(q) ||
-          f.unidad.toLowerCase().includes(q)
-        )
-      : filas;
+      const q = busqueda.trim().toLowerCase();
+      let resultado = q
+        ? filas.filter((f) =>
+            f.codigo_campaña.toLowerCase().includes(q) ||
+            f.cliente.toLowerCase().includes(q) ||
+            f.marca.toLowerCase().includes(q) ||
+            f.nombre_producto.toLowerCase().includes(q) ||
+            f.unidad.toLowerCase().includes(q)
+          )
+        : filas;
 
     if (soloConStock) resultado = resultado.filter((f) => f.stock > 0);
     return resultado;
