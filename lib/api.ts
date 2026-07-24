@@ -108,6 +108,7 @@ export interface AgregarElementosResultado {
 export interface LineaFichaIngreso {
   nombre_producto: string;
   cantidad_esperada: number;
+  factor_conversion?: number; // 👈 NUEVO — opcional, 1 = sin conversión
 }
 
 export interface NuevaFichaIngresoPayload {
@@ -227,6 +228,7 @@ export interface LineaRecepcionAlmacen {
   nombre_producto: string;
   cantidad_esperada: number;
   cantidad_recibida: number;
+  unidad_recibida?: string; // 👈 NUEVO
 }
 
 export interface FotoRecepcionAlmacen {
@@ -552,6 +554,9 @@ export interface LineaIngresoSeguimiento {
   nombre_producto: string;
   cantidad_esperada: number;
   cantidad_recibida: number | null;
+  url_foto: string;
+  factor_conversion?: number; // 👈 NUEVO
+  unidad_recibida?: string;   // 👈 NUEVO
 }
 
 export interface FichaSeguimiento {
