@@ -217,6 +217,7 @@ export interface FichaPendienteCabecera {
 export interface FichaDetalleLine {
   nombre_producto: string;
   cantidad_esperada: number;
+  factor_conversion?: number; // 👈 NUEVO
 }
 
 export interface FichaPendiente {
