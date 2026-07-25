@@ -554,10 +554,11 @@ export function obtenerInventario() {
 export interface LineaIngresoSeguimiento {
   nombre_producto: string;
   cantidad_esperada: number;
+  cantidad_esperada_base: number;  // 👈 NUEVO — esperado × factor
+  factor_conversion: number;       // 👈 NUEVO
   cantidad_recibida: number | null;
+  unidad_recibida: string;         // 👈 NUEVO
   url_foto: string;
-  factor_conversion?: number; // 👈 NUEVO
-  unidad_recibida?: string;   // 👈 NUEVO
 }
 
 export interface FichaSeguimiento {

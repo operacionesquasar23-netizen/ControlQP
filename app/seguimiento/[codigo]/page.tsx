@@ -156,29 +156,42 @@ export default function ExpedientePage({ params }: { params: { codigo: string } 
                       </thead>
                       <tbody>
                         {f.detalle.map((d, i) => {
-                          const diff = d.cantidad_recibida !== null && d.cantidad_recibida < d.cantidad_esperada;
+                          const esperadoBase = d.cantidad_esperada_base;
+                          const recibido     = d.cantidad_recibida;
+                          const completo     = recibido !== null && recibido >= esperadoBase;
+                          const parcial      = recibido !== null && recibido > 0 && recibido < esperadoBase;
+                          const sinRecibir   = recibido === null || recibido === 0;
                           return (
                             <tr key={i} className="border-t border-gray-50">
                               <td className="px-6 py-2.5 text-sm text-gray-900">{d.nombre_producto}</td>
-                              <td className="px-3 py-2.5 text-center text-sm text-gray-500">{d.cantidad_esperada}</td>
-                              <td className="px-3 py-2.5 text-center text-sm font-medium">
-                                {d.cantidad_recibida !== null ? (
-                                  <span className={diff ? 'text-amber-600' : 'text-green-700'}>{d.cantidad_recibida}</span>
-                                ) : (
-                                  <span className="text-gray-300">—</span>
+                              <td className="px-3 py-2.5 text-center">
+                                <p className="text-sm text-gray-500">{d.cantidad_esperada_base} {d.unidad_recibida || 'unid.'}</p>
+                                {d.factor_conversion > 1 && (
+                                  <p className="text-xs text-gray-300">({d.cantidad_esperada} × {d.factor_conversion})</p>
                                 )}
                               </td>
-                              <td className="px-3 py-2.5 text-center text-xs">
-                                {d.cantidad_recibida === null ? '⏳' : diff ? '⚠️ Parcial' : '✅'}
+                              <td className="px-3 py-2.5 text-center">
+                                {recibido !== null ? (
+                                  <div>
+                                    <p className={`text-sm font-medium ${completo ? 'text-green-700' : parcial ? 'text-amber-600' : 'text-red-600'}`}>
+                                      {recibido} {d.unidad_recibida || 'unid.'}
+                                    </p>
+                                    {parcial && (
+                                      <p className="text-xs text-amber-500">faltan {esperadoBase - recibido}</p>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-gray-300 text-sm">—</span>
+                                )}
+                              </td>
+                              <td className="px-3 py-2.5 text-center text-sm">
+                                {sinRecibir ? '⏳' : completo ? '✅' : '⚠️ Parcial'}
                               </td>
                               <td className="px-3 py-2.5 pr-6 text-center">
                                 {d.url_foto ? (
                                   <button onClick={() => setFotoAmpliada(d.url_foto)}>
-                                    <img
-                                      src={d.url_foto}
-                                      alt={d.nombre_producto}
-                                      className="w-10 h-10 object-cover rounded-lg hover:scale-110 transition-transform border border-gray-100"
-                                    />
+                                    <img src={d.url_foto} alt={d.nombre_producto}
+                                      className="w-10 h-10 object-cover rounded-lg hover:scale-110 transition-transform border border-gray-100" />
                                   </button>
                                 ) : (
                                   <span className="text-gray-200">🖼</span>
