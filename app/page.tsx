@@ -75,9 +75,18 @@ export default function HomePage() {
       </div>
 
       {/* Hero */}
-      <div className="bg-brand text-white px-6 pb-24 pt-8 animate-fade-in">
-        <div className="max-w-5xl mx-auto text-center">
-          <h1 className="text-5xl font-bold mb-3">ControlQP</h1>
+      <div
+        className="bg-brand text-white px-6 pb-24 pt-8 relative overflow-hidden"
+        style={{
+          backgroundImage: 'url(/fondo-hero.png)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}
+      >
+        {/* Overlay para mantener legibilidad del texto */}
+        <div className="absolute inset-0 bg-brand/90" />
+        <div className="max-w-5xl mx-auto text-center relative z-10">
+          <h1 className="text-5xl font-bold mb-3">Control de Inventarios QP</h1>
           <p className="text-blue-200 text-lg">Despacho y retorno de elementos de merchandising e impulso</p>
         </div>
       </div>
