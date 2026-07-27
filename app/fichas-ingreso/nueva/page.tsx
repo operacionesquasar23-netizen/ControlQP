@@ -1,6 +1,7 @@
 // app/fichas-ingreso/nueva/page.tsx
 'use client';
 
+import BuscadorCampaña from '@/components/BuscadorCampaña';
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -186,11 +187,12 @@ function FormularioFichaIngreso({ codigoEjecutivo, nombreEjecutivo }: { codigoEj
           <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-4">
             <p className="text-sm font-semibold text-gray-900 mb-4">Campaña</p>
             <label className="text-xs text-gray-400 block mb-1">Selecciona la campaña</label>
-            <select value={codigoSeleccionado} onChange={(e) => setCodigoSeleccionado(e.target.value)} disabled={cargandoCampañas}
-              className="w-full h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="">{cargandoCampañas ? 'Cargando campañas…' : 'Selecciona una campaña'}</option>
-              {campañas.map((c) => <option key={c.codigo_campaña} value={c.codigo_campaña}>{c.codigo_campaña} — {c.cliente} ({c.marca})</option>)}
-            </select>
+            <BuscadorCampaña
+              campañas={campañas}
+              valor={codigoSeleccionado}
+              onChange={setCodigoSeleccionado}
+              disabled={cargandoCampañas}
+            />
             {!cargandoCampañas && campañas.length === 0 && <p className="text-xs text-gray-400 mt-2">No tienes campañas activas registradas.</p>}
           </section>
 

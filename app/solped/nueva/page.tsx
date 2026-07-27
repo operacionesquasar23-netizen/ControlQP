@@ -9,6 +9,7 @@
 
 'use client';
 
+import BuscadorCampaña from '@/components/BuscadorCampaña';
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -306,19 +307,12 @@ function FormularioSolped({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-gray-400 block mb-1">Campaña</label>
-                <select
-                  value={codigoSeleccionado}
-                  onChange={(e) => setCodigoSeleccionado(e.target.value)}
+                <BuscadorCampaña
+                  campañas={campañas}
+                  valor={codigoSeleccionado}
+                  onChange={setCodigoSeleccionado}
                   disabled={cargandoCampañas}
-                  className="w-full h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">{cargandoCampañas ? 'Cargando…' : 'Selecciona una campaña'}</option>
-                  {campañas.map((c) => (
-                    <option key={c.codigo_campaña} value={c.codigo_campaña}>
-                      {c.codigo_campaña} — {c.cliente} ({c.marca})
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
               <div>
                 <label className="text-xs text-gray-400 block mb-1">Fecha de despacho</label>
