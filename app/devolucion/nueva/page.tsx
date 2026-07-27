@@ -1,7 +1,7 @@
 // app/devolucion/nueva/page.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { obtenerSesion } from '@/lib/sesion';
 import {
@@ -27,6 +27,7 @@ export default function NuevaDevolucionPage() {
   const [despachos, setDespachos] = useState<DespachoParaDevolucion[]>([]);
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState<string | null>(null);
+  const [busqueda, setBusqueda] = useState('');
 
   const [despachoElegido, setDespachoElegido] = useState<DespachoParaDevolucion | null>(null);
   const [lineas, setLineas] = useState<LineaForm[]>([]);
@@ -45,6 +46,18 @@ export default function NuevaDevolucionPage() {
       .catch((err) => setErrorCarga(err instanceof Error ? err.message : 'Error cargando despachos.'))
       .finally(() => setCargando(false));
   }, [router]);
+
+  // Filtro sobre la lista de despachos
+  const despachosFiltrados = useMemo(() => {
+    const q = busqueda.trim().toLowerCase();
+    if (!q) return despachos;
+    return despachos.filter((d) =>
+      d.cabecera.id_despacho.toLowerCase().includes(q) ||
+      d.cabecera.cliente.toLowerCase().includes(q) ||
+      d.cabecera.marca.toLowerCase().includes(q) ||
+      d.cabecera.codigo_campaña.toLowerCase().includes(q)
+    );
+  }, [despachos, busqueda]);
 
   function elegirDespacho(d: DespachoParaDevolucion) {
     setDespachoElegido(d);
@@ -84,7 +97,6 @@ export default function NuevaDevolucionPage() {
     const errs = validar();
     setErrores(errs);
     if (errs.length > 0) return;
-
     setEnviando(true);
     try {
       const resultado = await crearSolicitudDevolucion({
@@ -112,7 +124,7 @@ export default function NuevaDevolucionPage() {
   if (confirmado) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 max-w-md w-full text-center animate-scale-in">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 max-w-md w-full text-center">
           <div className="w-14 h-14 bg-green-50 rounded-xl flex items-center justify-center text-3xl mb-4 mx-auto">✅</div>
           <h1 className="text-xl font-bold text-gray-900 mb-2">Solicitud creada</h1>
           <p className="text-sm text-gray-500 mb-2"><strong>{confirmado}</strong></p>
@@ -128,7 +140,6 @@ export default function NuevaDevolucionPage() {
     );
   }
 
-  // Agrupar despachos por lugar para el formulario
   const lugares = despachoElegido
     ? lineas.reduce((acc, l) => {
         if (!acc[l.nombre_lugar]) acc[l.nombre_lugar] = [];
@@ -139,7 +150,7 @@ export default function NuevaDevolucionPage() {
 
   return (
     <div className={`min-h-screen bg-slate-50 transition-opacity duration-250 ${saliendo ? 'opacity-0' : 'opacity-100'}`}>
-      <div className="bg-brand text-white px-6 py-5 animate-fade-slide-down">
+      <div className="bg-brand text-white px-6 py-5">
         <div className="max-w-3xl mx-auto flex items-center justify-between">
           <div>
             <h1 className="text-lg font-bold">Nueva Devolución</h1>
@@ -164,9 +175,27 @@ export default function NuevaDevolucionPage() {
 
         {/* Paso 1: elegir despacho */}
         {!despachoElegido && (
-          <section className="animate-fade-slide-up">
+          <section>
             <h2 className="text-lg font-bold text-gray-900 mb-1">Selecciona el despacho a devolver</h2>
-            <p className="text-sm text-gray-500 mb-5">Solo aparecen despachos sin devolución registrada.</p>
+            <p className="text-sm text-gray-500 mb-4">Solo aparecen despachos sin devolución registrada.</p>
+
+            {/* Buscador */}
+            {!cargando && despachos.length > 0 && (
+              <div className="mb-4">
+                <input
+                  type="text"
+                  placeholder="Buscar por despacho, campaña, cliente o marca…"
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                  className="w-full h-10 rounded-xl border border-gray-200 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                />
+                {busqueda && (
+                  <p className="text-xs text-gray-400 mt-1.5 px-1">
+                    {despachosFiltrados.length} de {despachos.length} despachos
+                  </p>
+                )}
+              </div>
+            )}
 
             {cargando && <p className="text-sm text-gray-400 text-center py-12">Cargando despachos…</p>}
             {errorCarga && <p className="text-sm text-red-600">{errorCarga}</p>}
@@ -178,12 +207,18 @@ export default function NuevaDevolucionPage() {
               </div>
             )}
 
+            {!cargando && !errorCarga && despachos.length > 0 && despachosFiltrados.length === 0 && (
+              <div className="text-center py-8">
+                <p className="text-sm text-gray-400">No se encontraron despachos con esa búsqueda.</p>
+              </div>
+            )}
+
             <div className="space-y-3">
-              {despachos.map((d, i) => (
+              {despachosFiltrados.map((d) => (
                 <button
                   key={d.cabecera.id_despacho}
                   onClick={() => elegirDespacho(d)}
-                  className={`animate-fade-slide-up delay-${i * 75} w-full bg-white rounded-2xl border-2 border-transparent hover:border-blue-200 shadow-sm hover:shadow-md p-5 text-left transition-all duration-200 hover:-translate-y-0.5`}
+                  className="w-full bg-white rounded-2xl border-2 border-transparent hover:border-blue-200 shadow-sm hover:shadow-md p-5 text-left transition-all duration-200 hover:-translate-y-0.5"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -207,10 +242,10 @@ export default function NuevaDevolucionPage() {
 
         {/* Paso 2: ingresar cantidades */}
         {despachoElegido && (
-          <section className="animate-fade-slide-up">
+          <section>
             <div className="flex items-center gap-3 mb-6">
               <button
-                onClick={() => setDespachoElegido(null)}
+                onClick={() => { setDespachoElegido(null); setBusqueda(''); }}
                 className="text-xs text-gray-400 hover:text-gray-600"
               >← Cambiar despacho</button>
               <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">
@@ -277,7 +312,7 @@ export default function NuevaDevolucionPage() {
                 disabled={enviando}
                 className="bg-blue-700 hover:bg-blue-800 disabled:opacity-60 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors"
               >
-                {enviando ? <span className="animate-pulse-soft">Enviando…</span> : 'Crear solicitud de devolución'}
+                {enviando ? 'Enviando…' : 'Crear solicitud de devolución'}
               </button>
             </div>
           </section>
