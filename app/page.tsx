@@ -63,28 +63,32 @@ export default function HomePage() {
   return (
     <div className={`min-h-screen bg-slate-50 flex flex-col transition-opacity duration-250 ${saliendo ? 'opacity-0' : 'opacity-100'}`}>
 
-      {/* Header */}
-      <div className="bg-brand text-white px-6 py-5 animate-fade-slide-down">
-        <div className="max-w-5xl mx-auto flex items-center gap-4">
-          <Image src="/logo.png" alt="Quasar" width={48} height={48} className="rounded-full" />
-          <div>
-            <h1 className="text-xl font-bold">Quasar</h1>
-            <p className="text-blue-200 text-sm">Control de Inventario QP</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Hero */}
-      <div className="text-white px-6 pb-24 pt-8 relative overflow-hidden min-h-[280px]">
+      {/* Header + Hero unificado */}
+      <div className="relative overflow-hidden text-white" style={{ minHeight: '320px' }}>
         <img
           src="/fondo-hero.png"
           alt=""
           className="absolute inset-0 w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-blue-900/70" />
-        <div className="max-w-5xl mx-auto text-center relative z-10">
-          <h1 className="text-5xl font-bold mb-3">ControlQP</h1>
-          <p className="text-blue-200 text-lg">Despacho y retorno de elementos de merchandising e impulso</p>
+        <div className="absolute inset-0 bg-brand/85" />
+
+        {/* Header */}
+        <div className="relative z-10 px-6 py-5">
+          <div className="max-w-5xl mx-auto flex items-center gap-4">
+            <Image src="/logo.png" alt="Quasar" width={48} height={48} className="rounded-full" />
+            <div>
+              <h1 className="text-xl font-bold">Quasar</h1>
+              <p className="text-blue-200 text-sm">Control de Inventario QP</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Hero */}
+        <div className="relative z-10 px-6 pb-24 pt-4">
+          <div className="max-w-5xl mx-auto text-center">
+            <h1 className="text-5xl font-bold mb-3">Control Inventario QP</h1>
+            <p className="text-blue-200 text-lg">Despacho y retorno de elementos de merchandising e impulso</p>
+          </div>
         </div>
       </div>
 
