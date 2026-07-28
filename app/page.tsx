@@ -70,15 +70,15 @@ export default function HomePage() {
           alt=""
           className="absolute inset-0 w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-brand/85" />
+        <div className="absolute inset-0 bg-brand/60" />
 
         {/* Header */}
         <div className="relative z-10 px-6 py-5">
           <div className="max-w-5xl mx-auto flex items-center gap-4">
-            <Image src="/logo.png" alt="Quasar" width={48} height={48} className="rounded-full" />
+            <Image src="/logo.png" alt="Quasar" width={52} height={52} className="rounded-full" />
             <div>
               <h1 className="text-xl font-bold">Quasar</h1>
-              <p className="text-blue-200 text-sm">Control de Inventario QP</p>
+              <p className="text-blue-200 text-sm">People</p>
             </div>
           </div>
         </div>
@@ -86,8 +86,8 @@ export default function HomePage() {
         {/* Hero */}
         <div className="relative z-10 px-6 pb-24 pt-4">
           <div className="max-w-5xl mx-auto text-center">
-            <h1 className="text-5xl font-bold mb-3">Control Inventario QP</h1>
-            <p className="text-blue-200 text-lg">Despacho y retorno de elementos de merchandising e impulso</p>
+            <h1 className="text-5xl font-bold mb-3">Control de Inventario QP</h1>
+            <p className="text-blue-200 text-lg">Despacho y retorno de elementos</p>
           </div>
         </div>
       </div>
