@@ -437,7 +437,6 @@ export interface LineaDevolucion {
   nombre_producto: string;
   cantidad_despachada: number;
   cantidad_devuelta: number;
-  cantidad_recibida: number;
 }
 
 export interface DevolucionPendiente {

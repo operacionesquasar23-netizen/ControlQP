@@ -50,8 +50,8 @@ export default function ConfirmarDevolucionPage({ params }: { params: { id: stri
         setLineas(d.detalle.map((l) => ({
           nombre_lugar      : l.nombre_lugar,
           nombre_producto   : l.nombre_producto,
-          cantidad_solicitada: Number(l.cantidad_solicitada),
-          cantidad_recibida : String(l.cantidad_solicitada), // pre-llena con lo solicitado
+          cantidad_solicitada: Number(l.cantidad_devuelta),
+          cantidad_recibida  : String(l.cantidad_devuelta), // pre-llena con lo solicitado
         })));
       })
       .catch((err) => setErrorCarga(err instanceof Error ? err.message : 'Error cargando devolución.'))
