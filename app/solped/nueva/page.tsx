@@ -112,11 +112,11 @@ function FormularioSolped({ codigoEjecutivo, nombreEjecutivo, campañaInicial }:
           const ws   = wb.Sheets[wb.SheetNames[0]];
           const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
-          // Fila 0: ["FECHA DE DESPACHO:", valor, "", "Tienda", "Prod1", "Prod2", ...]
-          const fechaRaw        = rows[0]?.[1];
+          // Fila 4 (índice 3): fecha en col B, productos desde col E
+          const fechaRaw = rows[3]?.[1];
           const nombresProductos: string[] = [];
-          for (let c = 4; c < (rows[0]?.length || 0); c++) {
-            const nombre = String(rows[0]?.[c] ?? '').trim();
+          for (let c = 4; c < (rows[3]?.length || 0); c++) {
+            const nombre = String(rows[3]?.[c] ?? '').trim();
             if (nombre) nombresProductos.push(nombre);
           }
 
@@ -147,7 +147,7 @@ function FormularioSolped({ codigoEjecutivo, nombreEjecutivo, campañaInicial }:
 
           // Filas de tiendas: columna 3 = nombre tienda, cols 4+ = cantidades
           const lineasExcel: LineaFormulario[] = [];
-          for (let r = 1; r < rows.length; r++) {
+          for (let r = 4; r < rows.length; r++) {
             const nombreTienda = String(rows[r]?.[3] ?? '').trim();
             if (!nombreTienda) continue;
             for (let c = 0; c < nombresProductos.length; c++) {
