@@ -189,9 +189,9 @@ function FormularioFichaIngreso({ codigoEjecutivo, nombreEjecutivo }: { codigoEj
             <label className="text-xs text-gray-400 block mb-1">Selecciona la campaña</label>
             <BuscadorCampaña
               campañas={campañas}
-              valor={codigoSeleccionado}
+              value={codigoSeleccionado}
               onChange={setCodigoSeleccionado}
-              disabled={cargandoCampañas}
+              cargando={cargandoCampañas}
             />
             {!cargandoCampañas && campañas.length === 0 && <p className="text-xs text-gray-400 mt-2">No tienes campañas activas registradas.</p>}
           </section>
