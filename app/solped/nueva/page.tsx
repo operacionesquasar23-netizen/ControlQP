@@ -15,7 +15,7 @@ import {
   type CampañaProducto,
 } from '@/lib/api';
 import AccesoEjecutivo from '@/components/AccesoEjecutivo';
-import BuscadorCampaña from '@/components/BuscadorCampana';
+import BuscadorCampaña from '@/components/BuscadorCampaña';
 
 interface LineaFormulario {
   nombre_lugar: string;
