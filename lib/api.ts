@@ -459,11 +459,18 @@ export interface CrearDevolucionPayload {
   lineas: LineaDevolucion[];
 }
 
+export interface CantidadRecibidaDevolucion {
+  nombre_lugar: string;
+  nombre_producto: string;
+  cantidad_recibida: number;
+}
+
 export interface ConfirmarDevolucionPayload {
   id_devolucion: string;
   codigo_almacen: string;
   url_foto: string;
   observaciones?: string;
+  cantidades_recibidas?: CantidadRecibidaDevolucion[]; // 👈 NUEVO
 }
 
 // ---- Funciones: Devolución ----
@@ -669,3 +676,4 @@ export interface ConfirmacionDevolucion {
   observaciones: string;
   url_foto: string; // 👈 NUEVO
 }
+

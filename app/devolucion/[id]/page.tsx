@@ -12,6 +12,13 @@ import {
   type DevolucionPendiente,
 } from '@/lib/api';
 
+interface LineaConfirmacion {
+  nombre_lugar: string;
+  nombre_producto: string;
+  cantidad_solicitada: number;
+  cantidad_recibida: string;
+}
+
 export default function ConfirmarDevolucionPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const [codigoAlmacen, setCodigoAlmacen] = useState('');
@@ -20,6 +27,7 @@ export default function ConfirmarDevolucionPage({ params }: { params: { id: stri
   const [devolucion, setDevolucion] = useState<DevolucionPendiente | null>(null);
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState<string | null>(null);
+  const [lineas, setLineas] = useState<LineaConfirmacion[]>([]);
   const [observaciones, setObservaciones] = useState('');
   const [foto, setFoto] = useState<{ preview: string; base64: string; mimeType: string; nombre: string } | null>(null);
   const [subiendo, setSubiendo] = useState(false);
@@ -27,7 +35,7 @@ export default function ConfirmarDevolucionPage({ params }: { params: { id: stri
   const [errores, setErrores] = useState<string[]>([]);
   const [confirmado, setConfirmado] = useState(false);
   const [saliendo, setSaliendo] = useState(false);
-  const [mostrarModal, setMostrarModal] = useState(false); // 👈 NUEVO
+  const [mostrarModal, setMostrarModal] = useState(false);
   const inputFotoRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -37,10 +45,22 @@ export default function ConfirmarDevolucionPage({ params }: { params: { id: stri
     setNombreAlmacen(sesion.nombre);
     setListo(true);
     obtenerDevolucionParaConfirmar(params.id)
-      .then(setDevolucion)
+      .then((d) => {
+        setDevolucion(d);
+        setLineas(d.detalle.map((l) => ({
+          nombre_lugar      : l.nombre_lugar,
+          nombre_producto   : l.nombre_producto,
+          cantidad_solicitada: Number(l.cantidad_solicitada),
+          cantidad_recibida : String(l.cantidad_solicitada), // pre-llena con lo solicitado
+        })));
+      })
       .catch((err) => setErrorCarga(err instanceof Error ? err.message : 'Error cargando devolución.'))
       .finally(() => setCargando(false));
   }, [router, params.id]);
+
+  function actualizarLinea(index: number, cantidad: string) {
+    setLineas((prev) => prev.map((l, i) => (i === index ? { ...l, cantidad_recibida: cantidad } : l)));
+  }
 
   function manejarFoto(e: React.ChangeEvent<HTMLInputElement>) {
     const archivo = e.target.files?.[0];
@@ -57,10 +77,14 @@ export default function ConfirmarDevolucionPage({ params }: { params: { id: stri
   function validar(): string[] {
     const errs: string[] = [];
     if (!foto) errs.push('La foto de la devolución es obligatoria.');
+    lineas.forEach((l, i) => {
+      const cant = Number(l.cantidad_recibida);
+      if (isNaN(cant) || cant < 0) errs.push(`Línea ${i + 1}: la cantidad debe ser 0 o mayor.`);
+      if (cant > l.cantidad_solicitada) errs.push(`${l.nombre_producto} (${l.nombre_lugar}): no puede recibir más de lo solicitado (${l.cantidad_solicitada}).`);
+    });
     return errs;
   }
 
-  // 👇 NUEVO — validar primero, luego mostrar modal
   function solicitarConfirmacion() {
     const errs = validar();
     setErrores(errs);
@@ -82,7 +106,17 @@ export default function ConfirmarDevolucionPage({ params }: { params: { id: stri
     setSubiendo(false);
     setConfirmando(true);
     try {
-      await confirmarDevolucion({ id_devolucion: params.id, codigo_almacen: codigoAlmacen, url_foto: urlFoto, observaciones: observaciones.trim() });
+      await confirmarDevolucion({
+        id_devolucion    : params.id,
+        codigo_almacen   : codigoAlmacen,
+        url_foto         : urlFoto,
+        observaciones    : observaciones.trim(),
+        cantidades_recibidas: lineas.map((l) => ({
+          nombre_lugar     : l.nombre_lugar,
+          nombre_producto  : l.nombre_producto,
+          cantidad_recibida: Number(l.cantidad_recibida),
+        })),
+      });
       setConfirmado(true);
     } catch (err) {
       setErrores([err instanceof Error ? err.message : 'Error al confirmar devolución.']);
@@ -114,11 +148,11 @@ export default function ConfirmarDevolucionPage({ params }: { params: { id: stri
     </div>
   );
 
-  const lugares = devolucion.detalle.reduce((acc, l) => {
+  const lugares = lineas.reduce((acc, l) => {
     if (!acc[l.nombre_lugar]) acc[l.nombre_lugar] = [];
     acc[l.nombre_lugar].push(l);
     return acc;
-  }, {} as Record<string, typeof devolucion.detalle>);
+  }, {} as Record<string, LineaConfirmacion[]>);
 
   return (
     <div className={`min-h-screen bg-slate-50 transition-opacity duration-250 ${saliendo ? 'opacity-0' : 'opacity-100'}`}>
@@ -139,34 +173,64 @@ export default function ConfirmarDevolucionPage({ params }: { params: { id: stri
           </div>
         )}
 
+        {/* Cantidades */}
         <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-4 animate-fade-slide-up delay-75">
           <p className="text-sm font-semibold text-gray-900 mb-1">Productos a recibir</p>
-          <p className="text-xs text-gray-400 mb-4">Solicitado el {formatearFecha(String(devolucion.cabecera.fecha_solicitud))} · Despacho {devolucion.cabecera.id_despacho}</p>
+          <p className="text-xs text-gray-400 mb-4">
+            Solicitado el {formatearFecha(String(devolucion.cabecera.fecha_solicitud))} · Despacho {devolucion.cabecera.id_despacho}
+          </p>
           <div className="space-y-5">
-            {Object.entries(lugares).map(([lugar, lineas]) => (
+            {Object.entries(lugares).map(([lugar, items]) => (
               <div key={lugar}>
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{lugar}</p>
-                <div className="space-y-1">
-                  {lineas.map((l, i) => (
-                    <div key={i} className="flex justify-between items-center py-1.5 border-b border-gray-50 last:border-0">
-                      <p className="text-sm text-gray-900">{l.nombre_producto}</p>
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs text-gray-400">de {l.cantidad_despachada}</span>
-                        <span className="text-sm font-semibold text-gray-700 bg-gray-50 px-2 py-0.5 rounded-lg">{l.cantidad_devuelta}</span>
+                <div className="grid grid-cols-[2fr_1fr_1fr] gap-2 mb-1 px-1">
+                  <span className="text-xs text-gray-400">Producto</span>
+                  <span className="text-xs text-gray-400 text-center">Solicitado</span>
+                  <span className="text-xs text-gray-400 text-center">Recibido</span>
+                </div>
+                <div className="space-y-2">
+                  {items.map((linea, i) => {
+                    const recibido  = Number(linea.cantidad_recibida);
+                    const diferencia = recibido < linea.cantidad_solicitada;
+                    const idx = lineas.findIndex(
+                      (l) => l.nombre_lugar === linea.nombre_lugar && l.nombre_producto === linea.nombre_producto
+                    );
+                    return (
+                      <div key={i} className="grid grid-cols-[2fr_1fr_1fr] gap-2 items-center">
+                        <p className="text-sm text-gray-900">{linea.nombre_producto}</p>
+                        <p className="text-sm text-gray-400 text-center">{linea.cantidad_solicitada}</p>
+                        <div>
+                          <input
+                            type="number"
+                            min="0"
+                            max={linea.cantidad_solicitada}
+                            value={linea.cantidad_recibida}
+                            onChange={(e) => actualizarLinea(idx, e.target.value)}
+                            className={`w-full h-9 rounded-lg border px-3 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500 ${diferencia && recibido >= 0 ? 'border-amber-300 bg-amber-50' : 'border-gray-200'}`}
+                          />
+                          {diferencia && recibido >= 0 && (
+                            <p className="text-xs text-amber-600 mt-0.5 text-center">Faltan {linea.cantidad_solicitada - recibido}</p>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ))}
           </div>
+          {lineas.some((l) => Number(l.cantidad_recibida) < l.cantidad_solicitada) && (
+            <p className="text-xs text-amber-600 mt-4">⚠️ Algunas cantidades son menores a las solicitadas — quedará registrada la diferencia.</p>
+          )}
         </section>
 
+        {/* Observaciones */}
         <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-4 animate-fade-slide-up delay-150">
           <p className="text-sm font-semibold text-gray-900 mb-3">Observaciones (opcional)</p>
           <input type="text" placeholder="Ej: Un elemento con daño leve" value={observaciones} onChange={(e) => setObservaciones(e.target.value)} className="w-full h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </section>
 
+        {/* Foto */}
         <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6 animate-fade-slide-up delay-225">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -204,7 +268,10 @@ export default function ConfirmarDevolucionPage({ params }: { params: { id: stri
             <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center text-2xl mb-4">⚠️</div>
             <h2 className="text-lg font-bold text-gray-900 mb-1">¿Confirmar devolución?</h2>
             <p className="text-sm text-gray-500 mb-1">Devolución <strong>{params.id}</strong></p>
-            <p className="text-sm text-gray-500 mb-6">Esta acción es irreversible — la devolución quedará marcada como recibida.</p>
+            {lineas.some((l) => Number(l.cantidad_recibida) < l.cantidad_solicitada) && (
+              <p className="text-xs text-amber-600 mb-3">⚠️ Hay cantidades menores a las solicitadas.</p>
+            )}
+            <p className="text-sm text-gray-500 mb-6">Esta acción es irreversible.</p>
             <div className="flex gap-3">
               <button onClick={() => setMostrarModal(false)} className="flex-1 h-10 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors">Cancelar</button>
               <button onClick={manejarConfirmar} className="flex-1 h-10 rounded-lg bg-green-700 hover:bg-green-800 text-white text-sm font-semibold transition-colors">Sí, confirmar</button>
