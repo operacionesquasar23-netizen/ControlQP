@@ -189,7 +189,7 @@ export default function ExpedientePage({ params }: { params: { codigo: string } 
                               </td>
                               <td className="px-3 py-2.5 pr-6 text-center">
                                 {d.url_foto ? (
-                                  <button onClick={() => setFotoAmpliada(d.url_foto)}>
+                                  <button onClick={() => setFotoAmpliada(d.url_foto.replace('&sz=w200', '&sz=w1200'))}>
                                     <img src={d.url_foto} alt={d.nombre_producto}
                                       className="w-10 h-10 object-cover rounded-lg hover:scale-110 transition-transform border border-gray-100" />
                                   </button>
@@ -262,7 +262,7 @@ export default function ExpedientePage({ params }: { params: { codigo: string } 
                           🚚 Despachado el {formatearFecha(s.despacho.fecha)} por {s.despacho.despachado_por} · {s.despacho.id_despacho}
                         </p>
                         {s.despacho.url_foto && (
-                          <button onClick={() => setFotoAmpliada(s.despacho!.url_foto)}>
+                          <button onClick={() => setFotoAmpliada(s.despacho!.url_foto.replace('&sz=w200', '&sz=w1200'))}>
                             <img
                               src={s.despacho.url_foto}
                               alt="Foto despacho"
@@ -336,7 +336,7 @@ export default function ExpedientePage({ params }: { params: { codigo: string } 
                           {d.confirmacion.observaciones && ` · ${d.confirmacion.observaciones}`}
                         </p>
                         {d.confirmacion.url_foto && (
-                          <button onClick={() => setFotoAmpliada(d.confirmacion!.url_foto)}>
+                          <button onClick={() => setFotoAmpliada(d.confirmacion!.url_foto.replace('&sz=w200', '&sz=w1200'))}>
                             <img
                               src={d.confirmacion.url_foto}
                               alt="Foto devolución"

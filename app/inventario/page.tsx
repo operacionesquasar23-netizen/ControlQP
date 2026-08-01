@@ -208,7 +208,7 @@ export default function InventarioPage() {
                         </td>
                         <td className="px-4 py-3 pr-5 text-center">
                           {f.url_foto ? (
-                            <button onClick={() => setFotoAmpliada(f.url_foto)}>
+                            <button onClick={() => setFotoAmpliada(f.url_foto.replace('&sz=w200', '&sz=w1200'))}>
                               <img
                                 src={f.url_foto}
                                 alt={f.nombre_producto}
