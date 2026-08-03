@@ -1,0 +1,12 @@
+id_ficha,nombre_producto,cantidad_esperada,factor_conversion
+FIC-0001,POLO,5,
+FIC-0001,FALDA,5,
+FIC-0001,PRODUCTO01,10,
+FIC-0001,PRODUCTO02,20,
+FIC-0001,PRODUCTO03,20,
+FIC-0002,Producto1,1,1
+FIC-0002,Producto2,1,1
+FIC-0002,Producto3,5,10
+FIC-0002,Producto4,5,5
+FIC-0002,Producto5,100,100
+FIC-0002,Producto6,20,10

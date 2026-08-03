@@ -1,0 +1,12 @@
+id_recepcion,nombre_producto,cantidad_esperada,cantidad_recibida,url_foto,unidad_recibida
+REC-0001,POLO,5,5,https://drive.google.com/thumbnail?id=1ABH9sW9OG6YzV4Thlq4fa35g9cfQ7y_L&sz=w200,
+REC-0001,FALDA,5,5,https://drive.google.com/thumbnail?id=1Cxz7n_dbYtBBbYEII8yq2_CB700YNHwc&sz=w200,
+REC-0001,PRODUCTO01,10,10,https://drive.google.com/thumbnail?id=1IOg8N-UOCBlUJMyHHnKVU3D4Sz3OlT8O&sz=w200,
+REC-0001,PRODUCTO02,20,20,https://drive.google.com/thumbnail?id=1PfGbKVBdLZd4L_GLwMcCY7kV-TXXRlcL&sz=w200,
+REC-0001,PRODUCTO03,20,20,https://drive.google.com/thumbnail?id=1boSuHkcwB6rXzZPOXq7_mA7lXPIcMWP9&sz=w200,
+REC-0002,Producto1,1,1,https://drive.google.com/thumbnail?id=1lLZ_7eVAT5ar7zbImk7AsxDY8G3GAHYe&sz=w200,Unidad
+REC-0002,Producto2,1,1,https://drive.google.com/thumbnail?id=1Uy9cbYtp9Apq5bU2W57SV9jdIeQLbNL9&sz=w200,Unidad
+REC-0002,Producto3,5,40,https://drive.google.com/thumbnail?id=1OC_j6SgCtHEo_vPeGkLdcIKtwjMvUE8X&sz=w200,Unidad
+REC-0002,Producto4,5,25,https://drive.google.com/thumbnail?id=1zcZOA3TUERAKRMmTyJLeQGqZe4vATEb5&sz=w200,Unidad
+REC-0002,Producto5,100,10000,https://drive.google.com/thumbnail?id=1uz2KdOwpX1zRrcpM6xQoUBTAolKJ9bYT&sz=w200,Unidad
+REC-0002,Producto6,20,160,https://drive.google.com/thumbnail?id=1zdeQ88fJ1vaJobJVbT0ZClRXVt9dxfKF&sz=w200,Unidad

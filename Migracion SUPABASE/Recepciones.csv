@@ -1,0 +1,3 @@
+id_recepcion,id_ficha,codigo_campana,fecha,recibido_por,num_guia_remision,urls_fotos,observaciones
+REC-0001,FIC-0001,QP-QUA-0001,12/07/2026 22:17:08,Almacén,T001-00001,,
+REC-0002,FIC-0002,QP-QUA-0002,24/07/2026 16:00:32,Almacén,T001-12345,,

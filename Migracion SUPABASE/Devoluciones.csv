@@ -1,0 +1,3 @@
+id_devolucion,id_despacho,codigo_campana,codigo_ejecutivo,fecha_solicitud,estado
+DEV-0001,DES-0001,QP-QUA-0001,EJ002,14/07/2026 21:26:39,recibida
+DEV-0002,DES-0003,QP-QUA-0002,EJ001,31/07/2026 8:53:12,recibida

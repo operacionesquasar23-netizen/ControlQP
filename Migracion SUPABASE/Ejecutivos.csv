@@ -1,0 +1,4 @@
+codigo_acceso,nombre_ejecutivo,activo,rol
+EJ001,EJECUTIVO1,TRUE,Ejecutivo
+EJ002,EJECUTIVO2,TRUE,Ejecutivo
+ALM001,Almacén,TRUE,almacen

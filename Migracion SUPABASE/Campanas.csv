@@ -1,0 +1,3 @@
+codigo_campana,cliente,marca,ejecutivo,codigo_ejecutivo,fecha_inicio,fecha_fin,fecha_creacion,estado
+QP-QUA-0001,QUASAR01,QUASAR,EJECUTIVO2,EJ002,2026-07-01,2026-07-18,12/07/2026 16:30:42,activa
+QP-QUA-0002,QUASAR02,QUASAR,EJECUTIVO1,EJ001,2026-07-01,2026-07-31,21/07/2026 16:29:14,activa

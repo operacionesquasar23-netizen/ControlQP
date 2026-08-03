@@ -1,0 +1,16 @@
+codigo_campana,nombre_producto,unidad,categoria
+QP-QUA-0001,POLO,UNIDAD,Uniformes
+QP-QUA-0001,FALDA,UNIDAD,Uniformes
+QP-QUA-0001,PRODUCTO01,CAJA,Perecibles
+QP-QUA-0001,PRODUCTO02,CAJA,Merchandising
+QP-QUA-0001,PRODUCTO03,CAJA,Canjes
+QP-QUA-0002,Producto1,Unidad,Uniformes
+QP-QUA-0002,Producto2,Unidad,Uniformes
+QP-QUA-0002,Producto3,Caja,Merchandising
+QP-QUA-0002,Producto4,Caja,Merchandising
+QP-QUA-0002,Producto5,Paquete,Insumos
+QP-QUA-0002,Producto6,Paquete,Insumos
+QP-QUA-0002,Producto7,Paquete,Insumos
+QP-QUA-0002,Producto8,Six Pack,Perecibles
+QP-QUA-0002,Producto9,Six Pack,Perecibles
+QP-QUA-0002,Producto10,Six Pack,Perecibles
