@@ -356,12 +356,19 @@ export interface LineaSolpedSeguimiento {
   cantidad_solicitada: number;
 }
 
+export interface LineaDespachoConfirmado {
+  nombre_lugar: string;
+  nombre_producto: string;
+  cantidad_solicitada: number;
+  cantidad_despachada: number;
+}
+
 export interface DespachoSeguimiento {
   id_despacho: string;
   fecha: string;
   despachado_por: string;
   url_foto: string;
-  detalle: LineaSolpedSeguimiento[];
+  detalle: LineaDespachoConfirmado[];
 }
 
 export interface VersionAnteriorSolped {
@@ -1257,7 +1264,7 @@ export async function obtenerExpedienteCampaña(codigoCampaña: string, codigoEj
         fecha         : desp.fecha,
         despachado_por: desp.despachado_por,
         url_foto      : desp.url_foto || '',
-        detalle       : detDesp.map((d: any) => ({ nombre_lugar: d.nombre_lugar, nombre_producto: d.nombre_producto, cantidad_solicitada: d.cantidad_despachada })),
+        detalle       : detDesp.map((d: any) => ({ nombre_lugar: d.nombre_lugar, nombre_producto: d.nombre_producto, cantidad_solicitada: Number(d.cantidad_solicitada), cantidad_despachada: Number(d.cantidad_despachada) })),
       });
     }
 

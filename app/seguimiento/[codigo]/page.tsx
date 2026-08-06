@@ -220,6 +220,14 @@ export default function ExpedientePage({ params }: { params: { codigo: string } 
                   const cantidadDespachadas = tiendasDespachadas.size;
                   const todasDespachadas = totalTiendas > 0 && cantidadDespachadas >= totalTiendas;
 
+                  // Cantidad real despachada por tienda + producto, para comparar contra lo solicitado
+                  const despachadoPorTiendaProducto = new Map<string, number>();
+                  s.despachos.forEach((desp) => {
+                    desp.detalle.forEach((l) => {
+                      despachadoPorTiendaProducto.set(`${l.nombre_lugar}__${l.nombre_producto}`, l.cantidad_despachada);
+                    });
+                  });
+
                   return (
                     <div key={s.id_solped} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                       <div className="px-6 py-4 flex items-center justify-between border-b border-gray-50">
@@ -260,12 +268,23 @@ export default function ExpedientePage({ params }: { params: { codigo: string } 
                                   )}
                                 </div>
                                 <div className="space-y-1">
-                                  {lineas.map((l, i) => (
-                                    <div key={i} className="flex justify-between text-sm">
-                                      <span className="text-gray-700">{l.nombre_producto}</span>
-                                      <span className="text-gray-500">× {l.cantidad_solicitada}</span>
-                                    </div>
-                                  ))}
+                                  {lineas.map((l, i) => {
+                                    const clave = `${lugar}__${l.nombre_producto}`;
+                                    const despachadoReal = despachadoPorTiendaProducto.get(clave);
+                                    const hayDiferencia = despachadoReal !== undefined && despachadoReal !== l.cantidad_solicitada;
+                                    return (
+                                      <div key={i} className="flex justify-between text-sm">
+                                        <span className="text-gray-700">{l.nombre_producto}</span>
+                                        {despachadoReal !== undefined ? (
+                                          <span className={hayDiferencia ? 'text-amber-600 font-medium' : 'text-gray-500'}>
+                                            {despachadoReal} / {l.cantidad_solicitada} solicitado
+                                          </span>
+                                        ) : (
+                                          <span className="text-gray-500">× {l.cantidad_solicitada}</span>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               </div>
                             ))}
