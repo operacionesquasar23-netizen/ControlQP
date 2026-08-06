@@ -238,11 +238,27 @@ export interface CantidadRecibidaDevolucion {
   cantidad_recibida: number;
 }
 
-export interface ConfirmarDespachoPayload {
+export interface LineaDespachoTienda {
+  nombre_producto: string;
+  cantidad_solicitada: number;
+  cantidad_despachada: number;
+}
+
+export interface ConfirmarDespachoTiendaPayload {
   id_solped: string;
   codigo_almacen: string;
+  nombre_lugar: string;
   url_foto: string;
   observaciones?: string;
+  lineas: LineaDespachoTienda[];
+}
+
+export interface TiendaDespacho {
+  nombre_lugar: string;
+  estado: 'pendiente' | 'despachado';
+  id_despacho?: string;
+  fecha_despacho?: string;
+  lineas: LineaSolped[];
 }
 
 export interface ConfirmarDevolucionPayload {
@@ -364,7 +380,7 @@ export interface SolpedSeguimiento {
   fecha_creacion: string;
   motivo_cambio: string;
   versiones_anteriores: VersionAnteriorSolped[];
-  despacho: DespachoSeguimiento | null;
+  despachos: DespachoSeguimiento[];
   detalle: LineaSolpedSeguimiento[];
 }
 
@@ -777,9 +793,25 @@ export async function crearSolpedInicial(payload: NuevaSolpedPayload): Promise<{
   return { id_solped: idSolped, version: 1 };
 }
 
+// Devuelve el set de tiendas que ya tienen al menos un despacho confirmado para esta SOLPED
+async function obtenerTiendasDespachadas(idSolped: string): Promise<Set<string>> {
+  const { data: despachos } = await supabase.from('despachos').select('id_despacho').eq('id_solped', idSolped);
+  const idsDespachos = (despachos || []).map((d: any) => d.id_despacho);
+  if (idsDespachos.length === 0) return new Set();
+  const { data: detalles } = await supabase.from('despachos_detalle').select('nombre_lugar').in('id_despacho', idsDespachos);
+  return new Set((detalles || []).map((d: any) => d.nombre_lugar));
+}
+
 export async function crearNuevaVersionSolped(payload: NuevaVersionSolpedPayload): Promise<{ id_solped: string; version: number }> {
   const { data: anterior } = await supabase.from('solped').select('*').eq('id_solped', payload.id_solped_anterior).single();
   if (!anterior) throw new Error('No se encontró la SOLPED anterior.');
+
+  // La nueva versión solo debe cubrir tiendas que aún no fueron despachadas en la anterior
+  const tiendasDespachadas = await obtenerTiendasDespachadas(payload.id_solped_anterior);
+  const lineasPendientes = payload.lineas.filter((l) => !tiendasDespachadas.has(l.nombre_lugar));
+  if (lineasPendientes.length === 0) {
+    throw new Error('Todas las tiendas de esta SOLPED ya fueron despachadas; no queda nada pendiente para una nueva versión.');
+  }
 
   const nuevaVersion = Number(anterior.version) + 1;
   const { count } = await supabase
@@ -803,7 +835,7 @@ export async function crearNuevaVersionSolped(payload: NuevaVersionSolpedPayload
     motivo_cambio      : payload.motivo_cambio,
   });
 
-  for (const l of payload.lineas) {
+  for (const l of lineasPendientes) {
     await supabase.from('solped_detalle').insert({
       id_solped          : idSolped,
       nombre_lugar       : l.nombre_lugar,
@@ -843,7 +875,7 @@ export async function obtenerSolpedsDeCampaña(codigoCampaña: string, codigoEje
 // ── Despacho ──────────────────────────────────────────────────────────────────
 
 export async function listarSolpedsVigentes(): Promise<SolpedVigente[]> {
-  const { data: solpeds } = await supabase.from('solped').select('*').eq('estado', 'vigente');
+  const { data: solpeds } = await supabase.from('solped').select('*').in('estado', ['vigente', 'parcialmente_despachada']);
   if (!solpeds) return [];
 
   const resultado: SolpedVigente[] = [];
@@ -871,7 +903,7 @@ export async function listarSolpedsVigentes(): Promise<SolpedVigente[]> {
 export async function obtenerSolpedParaDespacho(idSolped: string): Promise<SolpedVigente> {
   const { data: s } = await supabase.from('solped').select('*').eq('id_solped', idSolped).single();
   if (!s) throw new Error('No se encontró la SOLPED ' + idSolped);
-  if (s.estado !== 'vigente') throw new Error('La SOLPED no está vigente.');
+  if (s.estado !== 'vigente' && s.estado !== 'parcialmente_despachada') throw new Error('La SOLPED no está vigente.');
   const { data: camp } = await supabase.from('campanas').select('cliente,marca').eq('codigo_campana', s.codigo_campana).single();
   const { data: detalle } = await supabase.from('solped_detalle').select('*').eq('id_solped', idSolped);
   return {
@@ -890,14 +922,68 @@ export async function obtenerSolpedParaDespacho(idSolped: string): Promise<Solpe
   };
 }
 
-export async function confirmarDespacho(payload: ConfirmarDespachoPayload): Promise<{ id_despacho: string }> {
+// Agrupa el detalle de la SOLPED por tienda y marca cuáles ya tienen un despacho confirmado
+export async function obtenerEstadoTiendasSolped(idSolped: string): Promise<TiendaDespacho[]> {
+  const { data: detalle } = await supabase.from('solped_detalle').select('*').eq('id_solped', idSolped);
+  const { data: despachos } = await supabase.from('despachos').select('id_despacho,fecha').eq('id_solped', idSolped);
+  const idsDespachos = (despachos || []).map((d: any) => d.id_despacho);
+  const detallesDespacho = idsDespachos.length > 0
+    ? (await supabase.from('despachos_detalle').select('id_despacho,nombre_lugar').in('id_despacho', idsDespachos)).data || []
+    : [];
+
+  const porTienda = (detalle || []).reduce((acc: Record<string, LineaSolped[]>, d: any) => {
+    if (!acc[d.nombre_lugar]) acc[d.nombre_lugar] = [];
+    acc[d.nombre_lugar].push({ nombre_lugar: d.nombre_lugar, nombre_producto: d.nombre_producto, cantidad_solicitada: d.cantidad_solicitada });
+    return acc;
+  }, {});
+
+  return Object.entries(porTienda).map(([nombre_lugar, lineas]) => {
+    const detDespacho = detallesDespacho.find((dd: any) => dd.nombre_lugar === nombre_lugar);
+    const despachoCabecera = detDespacho ? (despachos || []).find((d: any) => d.id_despacho === detDespacho.id_despacho) : null;
+    return {
+      nombre_lugar,
+      estado: detDespacho ? 'despachado' : 'pendiente',
+      id_despacho: detDespacho?.id_despacho,
+      fecha_despacho: despachoCabecera?.fecha,
+      lineas,
+    };
+  });
+}
+
+// Recalcula el estado de la SOLPED según cuántas tiendas ya tienen despacho confirmado
+async function recalcularEstadoSolped(idSolped: string): Promise<void> {
+  const { data: detalle } = await supabase.from('solped_detalle').select('nombre_lugar').eq('id_solped', idSolped);
+  const tiendasTotales = new Set((detalle || []).map((d: any) => d.nombre_lugar));
+  const tiendasDespachadas = await obtenerTiendasDespachadas(idSolped);
+
+  let nuevoEstado: string;
+  if (tiendasDespachadas.size === 0) nuevoEstado = 'vigente';
+  else if (tiendasDespachadas.size >= tiendasTotales.size) nuevoEstado = 'despachada';
+  else nuevoEstado = 'parcialmente_despachada';
+
+  await supabase.from('solped').update({ estado: nuevoEstado }).eq('id_solped', idSolped);
+}
+
+export async function confirmarDespachoTienda(payload: ConfirmarDespachoTiendaPayload): Promise<{ id_despacho: string }> {
   const { data: solped } = await supabase.from('solped').select('*').eq('id_solped', payload.id_solped).single();
   if (!solped) throw new Error('No se encontró la SOLPED ' + payload.id_solped);
-  if (solped.estado === 'despachada') throw new Error('Esta SOLPED ya fue despachada.');
-  if (solped.estado !== 'vigente') throw new Error('La SOLPED no está vigente.');
+  if (solped.estado !== 'vigente' && solped.estado !== 'parcialmente_despachada') throw new Error('La SOLPED no está vigente.');
 
-  const { data: detalle } = await supabase.from('solped_detalle').select('*').eq('id_solped', payload.id_solped);
-  if (!detalle || detalle.length === 0) throw new Error('La SOLPED no tiene líneas de detalle.');
+  // Esta tienda no debe haber sido despachada ya dentro de esta SOLPED
+  const tiendasDespachadas = await obtenerTiendasDespachadas(payload.id_solped);
+  if (tiendasDespachadas.has(payload.nombre_lugar)) {
+    throw new Error(`La tienda "${payload.nombre_lugar}" ya fue despachada para esta SOLPED.`);
+  }
+
+  // Bloqueo: no se puede despachar más de lo solicitado por producto
+  for (const l of payload.lineas) {
+    if (l.cantidad_despachada > l.cantidad_solicitada) {
+      throw new Error(`No puedes despachar más de lo solicitado para "${l.nombre_producto}" (solicitado: ${l.cantidad_solicitada}, ingresado: ${l.cantidad_despachada}).`);
+    }
+    if (l.cantidad_despachada < 0) {
+      throw new Error(`La cantidad despachada de "${l.nombre_producto}" no puede ser negativa.`);
+    }
+  }
 
   const { count } = await supabase
     .from('despachos')
@@ -915,17 +1001,21 @@ export async function confirmarDespacho(payload: ConfirmarDespachoPayload): Prom
     observaciones : payload.observaciones || '',
   });
 
-  for (const linea of detalle) {
+  for (const linea of payload.lineas) {
     await supabase.from('despachos_detalle').insert({
-      id_despacho        : idDespacho,
-      nombre_lugar       : linea.nombre_lugar,
-      nombre_producto    : linea.nombre_producto,
-      cantidad_despachada: linea.cantidad_solicitada,
+      id_despacho         : idDespacho,
+      nombre_lugar        : payload.nombre_lugar,
+      nombre_producto      : linea.nombre_producto,
+      cantidad_solicitada : linea.cantidad_solicitada,
+      cantidad_despachada : linea.cantidad_despachada,
     });
-    await actualizarStockActual(solped.codigo_campana, linea.nombre_producto, 0, Number(linea.cantidad_solicitada), 0);
+    // El stock baja según lo que realmente sale, no según lo solicitado
+    if (linea.cantidad_despachada > 0) {
+      await actualizarStockActual(solped.codigo_campana, linea.nombre_producto, 0, Number(linea.cantidad_despachada), 0);
+    }
   }
 
-  await supabase.from('solped').update({ estado: 'despachada' }).eq('id_solped', payload.id_solped);
+  await recalcularEstadoSolped(payload.id_solped);
 
   return { id_despacho: idDespacho };
 }
@@ -1158,8 +1248,18 @@ export async function obtenerExpedienteCampaña(codigoCampaña: string, codigoEj
   const solicitudesDespacho: SolpedSeguimiento[] = [];
   for (const s of solpeds || []) {
     const { data: det } = await supabase.from('solped_detalle').select('*').eq('id_solped', s.id_solped);
-    const { data: desp } = await supabase.from('despachos').select('*').eq('id_solped', s.id_solped).single();
-    const detDesp = desp ? (await supabase.from('despachos_detalle').select('*').eq('id_despacho', desp.id_despacho)).data || [] : [];
+    const { data: despsTienda } = await supabase.from('despachos').select('*').eq('id_solped', s.id_solped);
+    const despachos: DespachoSeguimiento[] = [];
+    for (const desp of despsTienda || []) {
+      const detDesp = (await supabase.from('despachos_detalle').select('*').eq('id_despacho', desp.id_despacho)).data || [];
+      despachos.push({
+        id_despacho   : desp.id_despacho,
+        fecha         : desp.fecha,
+        despachado_por: desp.despachado_por,
+        url_foto      : desp.url_foto || '',
+        detalle       : detDesp.map((d: any) => ({ nombre_lugar: d.nombre_lugar, nombre_producto: d.nombre_producto, cantidad_solicitada: d.cantidad_despachada })),
+      });
+    }
 
     solicitudesDespacho.push({
       id_solped            : s.id_solped,
@@ -1169,7 +1269,7 @@ export async function obtenerExpedienteCampaña(codigoCampaña: string, codigoEj
       fecha_creacion       : s.fecha_creacion,
       motivo_cambio        : s.motivo_cambio,
       versiones_anteriores : [],
-      despacho             : desp ? { id_despacho: desp.id_despacho, fecha: desp.fecha, despachado_por: desp.despachado_por, url_foto: desp.url_foto || '', detalle: detDesp.map((d: any) => ({ nombre_lugar: d.nombre_lugar, nombre_producto: d.nombre_producto, cantidad_solicitada: d.cantidad_despachada })) } : null,
+      despachos,
       detalle              : (det || []).map((d: any) => ({ nombre_lugar: d.nombre_lugar, nombre_producto: d.nombre_producto, cantidad_solicitada: d.cantidad_solicitada })),
     });
   }
