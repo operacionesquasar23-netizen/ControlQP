@@ -212,73 +212,99 @@ export default function ExpedientePage({ params }: { params: { codigo: string } 
               <div className="space-y-4 animate-fade-slide-up">
                 {expediente.solicitudesDespacho.length === 0 ? (
                   <EmptyState icon="🚚" texto="Sin SOLPEDs registradas." />
-                ) : expediente.solicitudesDespacho.map((s) => (
-                  <div key={s.id_solped} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                    <div className="px-6 py-4 flex items-center justify-between border-b border-gray-50">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">{s.id_solped}</span>
-                        <span className="text-xs text-gray-400">v{s.version}</span>
-                        <span className="text-xs text-gray-400">Despacho: {formatearFecha(s.fecha_despacho)}</span>
-                      </div>
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                        s.despacho ? 'bg-green-50 text-green-700' :
-                        s.estado === 'vigente' ? 'bg-amber-50 text-amber-700' :
-                        'bg-gray-50 text-gray-400'
-                      }`}>
-                        {s.despacho ? '✅ Despachada' : s.estado === 'vigente' ? '⏳ Sin despacho' : s.estado}
-                      </span>
-                    </div>
+                ) : expediente.solicitudesDespacho.map((s) => {
+                  // Tiendas de la SOLPED con las que ya tienen despacho vinculadas
+                  const tiendasDetalle = Array.from(new Set(s.detalle.map((l) => l.nombre_lugar)));
+                  const tiendasDespachadas = new Set(s.despachos.flatMap((desp) => desp.detalle.map((l) => l.nombre_lugar)));
+                  const totalTiendas = tiendasDetalle.length;
+                  const cantidadDespachadas = tiendasDespachadas.size;
+                  const todasDespachadas = totalTiendas > 0 && cantidadDespachadas >= totalTiendas;
 
-                    {/* Detalle SOLPED agrupado por lugar */}
-                    {(() => {
-                      const lugares = s.detalle.reduce((acc, l) => {
-                        if (!acc[l.nombre_lugar]) acc[l.nombre_lugar] = [];
-                        acc[l.nombre_lugar].push(l);
-                        return acc;
-                      }, {} as Record<string, typeof s.detalle>);
-                      return (
-                        <div className="px-6 py-4 space-y-3">
-                          {Object.entries(lugares).map(([lugar, lineas]) => (
-                            <div key={lugar}>
-                              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">{lugar}</p>
-                              <div className="space-y-1">
-                                {lineas.map((l, i) => (
-                                  <div key={i} className="flex justify-between text-sm">
-                                    <span className="text-gray-700">{l.nombre_producto}</span>
-                                    <span className="text-gray-500">× {l.cantidad_solicitada}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
+                  return (
+                    <div key={s.id_solped} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                      <div className="px-6 py-4 flex items-center justify-between border-b border-gray-50">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">{s.id_solped}</span>
+                          <span className="text-xs text-gray-400">v{s.version}</span>
+                          <span className="text-xs text-gray-400">Despacho: {formatearFecha(s.fecha_despacho)}</span>
                         </div>
-                      );
-                    })()}
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                          todasDespachadas ? 'bg-green-50 text-green-700' :
+                          cantidadDespachadas > 0 ? 'bg-amber-50 text-amber-700' :
+                          s.estado === 'vigente' ? 'bg-amber-50 text-amber-700' :
+                          'bg-gray-50 text-gray-400'
+                        }`}>
+                          {todasDespachadas
+                            ? '✅ Despachada'
+                            : `${cantidadDespachadas} / ${totalTiendas} tiendas despachadas`}
+                        </span>
+                      </div>
 
-                    {/* Info despacho + foto */}
-                    {s.despacho && (
-                      <div className="px-6 py-3 bg-green-50 border-t border-green-100 flex items-center justify-between">
-                        <p className="text-xs text-green-700">
-                          🚚 Despachado el {formatearFecha(s.despacho.fecha)} por {s.despacho.despachado_por} · {s.despacho.id_despacho}
-                        </p>
-                        {s.despacho.url_foto && (
-                          <button onClick={() => setFotoAmpliada(s.despacho!.url_foto.replace('&sz=w200', '&sz=w1200'))}>
-                            <img
-                              src={s.despacho.url_foto}
-                              alt="Foto despacho"
-                              className="w-10 h-10 object-cover rounded-lg hover:scale-110 transition-transform border border-green-200 ml-3"
-                            />
-                          </button>
-                        )}
-                      </div>
-                    )}
-                    {!s.despacho && s.estado === 'vigente' && (
-                      <div className="px-6 py-3 bg-amber-50 border-t border-amber-100 text-xs text-amber-700">
-                        ⚠️ SOLPED vigente — aún no hay despacho registrado
-                      </div>
-                    )}
-                  </div>
-                ))}
+                      {/* Detalle SOLPED agrupado por lugar */}
+                      {(() => {
+                        const lugares = s.detalle.reduce((acc, l) => {
+                          if (!acc[l.nombre_lugar]) acc[l.nombre_lugar] = [];
+                          acc[l.nombre_lugar].push(l);
+                          return acc;
+                        }, {} as Record<string, typeof s.detalle>);
+                        return (
+                          <div className="px-6 py-4 space-y-3">
+                            {Object.entries(lugares).map(([lugar, lineas]) => (
+                              <div key={lugar}>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{lugar}</p>
+                                  {tiendasDespachadas.has(lugar) ? (
+                                    <span className="text-[10px] font-semibold text-green-700 bg-green-50 px-1.5 py-0.5 rounded-full">✅ Despachado</span>
+                                  ) : (
+                                    <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-full">⏳ Pendiente</span>
+                                  )}
+                                </div>
+                                <div className="space-y-1">
+                                  {lineas.map((l, i) => (
+                                    <div key={i} className="flex justify-between text-sm">
+                                      <span className="text-gray-700">{l.nombre_producto}</span>
+                                      <span className="text-gray-500">× {l.cantidad_solicitada}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })()}
+
+                      {/* Info de cada despacho confirmado, con su foto */}
+                      {s.despachos.length > 0 && (
+                        <div className="border-t border-green-100">
+                          {s.despachos.map((desp) => {
+                            const tienda = desp.detalle[0]?.nombre_lugar || '—';
+                            return (
+                              <div key={desp.id_despacho} className="px-6 py-3 bg-green-50 border-b border-green-100 last:border-b-0 flex items-center justify-between">
+                                <p className="text-xs text-green-700">
+                                  🚚 {tienda} · Despachado el {formatearFecha(desp.fecha)} por {desp.despachado_por} · {desp.id_despacho}
+                                </p>
+                                {desp.url_foto && (
+                                  <button onClick={() => setFotoAmpliada(desp.url_foto.replace('&sz=w200', '&sz=w1200'))}>
+                                    <img
+                                      src={desp.url_foto}
+                                      alt={`Foto despacho ${tienda}`}
+                                      className="w-10 h-10 object-cover rounded-lg hover:scale-110 transition-transform border border-green-200 ml-3"
+                                    />
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {!todasDespachadas && (
+                        <div className="px-6 py-3 bg-amber-50 border-t border-amber-100 text-xs text-amber-700">
+                          ⚠️ Quedan {totalTiendas - cantidadDespachadas} tienda{totalTiendas - cantidadDespachadas !== 1 ? 's' : ''} sin despachar
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
 
