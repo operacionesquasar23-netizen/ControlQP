@@ -87,11 +87,11 @@ function FormularioNuevaCampaña({ codigoEjecutivo, nombreEjecutivo }: { codigoE
 
         const getCabecera = (fila: number) => String(rows[fila]?.[1] ?? '').trim();
 
-        const codigoRaw   = getCabecera(1);
-        const clienteRaw  = getCabecera(2);
-        const marcaRaw    = getCabecera(3);
-        const fechaIniRaw = rows[4]?.[1];
-        const fechaFinRaw = rows[5]?.[1];
+        const codigoRaw   = getCabecera(4);  // Fila 5, col B
+        const clienteRaw  = getCabecera(5);  // Fila 6
+        const marcaRaw    = getCabecera(6);  // Fila 7
+        const fechaIniRaw = rows[7]?.[1];    // Fila 8
+        const fechaFinRaw = rows[8]?.[1];    // Fila 9
 
         if (!codigoRaw)  throw new Error('No se encontró el Código de campaña.');
         if (!clienteRaw) throw new Error('No se encontró el Cliente.');
@@ -115,17 +115,19 @@ function FormularioNuevaCampaña({ codigoEjecutivo, nombreEjecutivo }: { codigoE
           return '';
         }
 
+        // Tiendas desde fila 5 (índice 4), col D(3) y E(4)
         const lugaresExcel: Lugar[] = [];
-        for (let r = 1; r < rows.length; r++) {
+        for (let r = 4; r < rows.length; r++) {
           const nombre = String(rows[r]?.[3] ?? '').trim();
           const zona   = String(rows[r]?.[4] ?? '').trim();
           if (!nombre) continue;
           lugaresExcel.push({ nombre_lugar: nombre, zona: zona.toLowerCase() === 'provincia' ? 'Provincia' : 'Lima' });
         }
 
+        // Productos desde fila 5 (índice 4), col G(6), H(7), I(8)
         const productosExcel: Producto[] = [];
         const categoriasNuevas = new Set<string>();
-        for (let r = 1; r < rows.length; r++) {
+        for (let r = 4; r < rows.length; r++) {
           const nombre    = String(rows[r]?.[6] ?? '').trim();
           const unidad    = String(rows[r]?.[7] ?? '').trim();
           const categoria = String(rows[r]?.[8] ?? '').trim();
