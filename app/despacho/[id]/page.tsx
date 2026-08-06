@@ -54,7 +54,8 @@ function FormularioDespacho({ id, codigoAlmacen, nombreAlmacen }: { id: string; 
   const [confirmando, setConfirmando] = useState(false);
   const [errores, setErrores] = useState<string[]>([]);
   const [despachoConfirmado, setDespachoConfirmado] = useState<string | null>(null);
-  const [mostrarModal, setMostrarModal] = useState(false); // 👈 NUEVO
+  const [mostrarModal, setMostrarModal] = useState(false);
+  const [busquedaTienda, setBusquedaTienda] = useState(''); // 👈 NUEVO
   const inputFotoRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -82,7 +83,6 @@ function FormularioDespacho({ id, codigoAlmacen, nombreAlmacen }: { id: string; 
     return errs;
   }
 
-  // 👇 NUEVO — validar primero, luego mostrar modal
   function solicitarConfirmacion() {
     const errs = validar();
     setErrores(errs);
@@ -141,6 +141,11 @@ function FormularioDespacho({ id, codigoAlmacen, nombreAlmacen }: { id: string; 
     return acc;
   }, {} as Record<string, typeof solped.detalle>);
 
+  // 👇 NUEVO — filtra las tiendas por el texto buscado (sin distinguir mayúsculas/tildes exactas)
+  const lugaresFiltrados = Object.entries(lugares).filter(([nombreLugar]) =>
+    nombreLugar.toLowerCase().includes(busquedaTienda.trim().toLowerCase())
+  );
+
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="bg-brand text-white px-6 py-5">
@@ -166,20 +171,36 @@ function FormularioDespacho({ id, codigoAlmacen, nombreAlmacen }: { id: string; 
             <div><span className="text-gray-400">Fecha despacho:</span> <strong>{formatearFecha(solped.cabecera.fecha_despacho)}</strong></div>
             <div><span className="text-gray-400">Marca:</span> <strong>{solped.cabecera.marca}</strong></div>
           </div>
+
+          {/* 👇 NUEVO — buscador de tienda, sticky para que quede visible al hacer scroll */}
+          <div className="sticky top-0 z-10 bg-white pb-3 mb-1 -mt-1">
+            <input
+              type="text"
+              placeholder="Buscar tienda…"
+              value={busquedaTienda}
+              onChange={(e) => setBusquedaTienda(e.target.value)}
+              className="w-full h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
           <div className="space-y-4">
-            {Object.entries(lugares).map(([lugar, lineas]) => (
-              <div key={lugar}>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{lugar}</p>
-                <div className="space-y-1">
-                  {lineas.map((linea, i) => (
-                    <div key={i} className="flex justify-between items-center py-1.5 border-b border-gray-50 last:border-0">
-                      <p className="text-sm text-gray-900">{linea.nombre_producto}</p>
-                      <span className="text-sm font-semibold text-gray-700 bg-gray-50 px-2 py-0.5 rounded-lg">{linea.cantidad_solicitada}</span>
-                    </div>
-                  ))}
+            {lugaresFiltrados.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-4">No se encontró ninguna tienda con ese nombre.</p>
+            ) : (
+              lugaresFiltrados.map(([lugar, lineas]) => (
+                <div key={lugar}>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{lugar}</p>
+                  <div className="space-y-1">
+                    {lineas.map((linea, i) => (
+                      <div key={i} className="flex justify-between items-center py-1.5 border-b border-gray-50 last:border-0">
+                        <p className="text-sm text-gray-900">{linea.nombre_producto}</p>
+                        <span className="text-sm font-semibold text-gray-700 bg-gray-50 px-2 py-0.5 rounded-lg">{linea.cantidad_solicitada}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </section>
 
