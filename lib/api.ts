@@ -11,6 +11,12 @@ export function formatearFecha(fechaIso: string): string {
   return `${dia}/${mes}/${año}`;
 }
 
+// Recorta el prefijo "QP-" y los guiones internos del código de campaña
+// para usarlo dentro de IDs correlativos por campaña (ej: "QP-AJE-0001" -> "AJE0001")
+function codigoCorto(codigoCampaña: string): string {
+  return codigoCampaña.replace(/^QP-/, '').replace(/-/g, '');
+}
+
 async function query<T>(table: string, filters?: Record<string, any>, select = '*'): Promise<T[]> {
   let q = supabase.from(table).select(select);
   if (filters) {
@@ -526,8 +532,11 @@ export async function agregarElementosACampaña(payload: AgregarElementosPayload
 // ── Fichas de Ingreso ─────────────────────────────────────────────────────────
 
 export async function crearFichaIngreso(payload: NuevaFichaIngresoPayload): Promise<CrearFichaIngresoResultado> {
-  const { count } = await supabase.from('fichas_ingreso').select('*', { count: 'exact', head: true });
-  const idFicha = 'FIC-' + String((count || 0) + 1).padStart(4, '0');
+  const { count } = await supabase
+    .from('fichas_ingreso')
+    .select('*', { count: 'exact', head: true })
+    .eq('codigo_campana', payload.codigo_campaña);
+  const idFicha = `FIC-${codigoCorto(payload.codigo_campaña)}-` + String((count || 0) + 1).padStart(4, '0');
 
   await supabase.from('fichas_ingreso').insert({
     id_ficha      : idFicha,
@@ -644,8 +653,11 @@ export async function confirmarRecepcion(payload: ConfirmarRecepcionPayload): Pr
   if (!ficha) throw new Error('No se encontró la ficha ' + payload.id_ficha);
   if (ficha.estado === 'recibida') throw new Error('Esta ficha ya fue confirmada.');
 
-  const { count } = await supabase.from('recepciones').select('*', { count: 'exact', head: true });
-  const idRecepcion = 'REC-' + String((count || 0) + 1).padStart(4, '0');
+  const { count } = await supabase
+    .from('recepciones')
+    .select('*', { count: 'exact', head: true })
+    .eq('codigo_campana', ficha.codigo_campana);
+  const idRecepcion = `REC-${codigoCorto(ficha.codigo_campana)}-` + String((count || 0) + 1).padStart(4, '0');
 
   await supabase.from('recepciones').insert({
     id_recepcion    : idRecepcion,
@@ -736,8 +748,11 @@ export async function obtenerStockDisponible(codigoCampaña: string, codigoEjecu
 // ── SOLPED ────────────────────────────────────────────────────────────────────
 
 export async function crearSolpedInicial(payload: NuevaSolpedPayload): Promise<{ id_solped: string; version: number }> {
-  const { count } = await supabase.from('solped').select('*', { count: 'exact', head: true });
-  const idSolped = 'SOL-' + String((count || 0) + 1).padStart(4, '0');
+  const { count } = await supabase
+    .from('solped')
+    .select('*', { count: 'exact', head: true })
+    .eq('codigo_campana', payload.codigo_campaña);
+  const idSolped = `SOL-${codigoCorto(payload.codigo_campaña)}-` + String((count || 0) + 1).padStart(4, '0');
 
   await supabase.from('solped').insert({
     id_solped       : idSolped,
@@ -767,8 +782,11 @@ export async function crearNuevaVersionSolped(payload: NuevaVersionSolpedPayload
   if (!anterior) throw new Error('No se encontró la SOLPED anterior.');
 
   const nuevaVersion = Number(anterior.version) + 1;
-  const { count } = await supabase.from('solped').select('*', { count: 'exact', head: true });
-  const idSolped = 'SOL-' + String((count || 0) + 1).padStart(4, '0');
+  const { count } = await supabase
+    .from('solped')
+    .select('*', { count: 'exact', head: true })
+    .eq('codigo_campana', anterior.codigo_campana);
+  const idSolped = `SOL-${codigoCorto(anterior.codigo_campana)}-` + String((count || 0) + 1).padStart(4, '0');
 
   // Marcar anterior como reemplazada
   await supabase.from('solped').update({ estado: 'reemplazada' }).eq('id_solped', payload.id_solped_anterior);
@@ -881,8 +899,11 @@ export async function confirmarDespacho(payload: ConfirmarDespachoPayload): Prom
   const { data: detalle } = await supabase.from('solped_detalle').select('*').eq('id_solped', payload.id_solped);
   if (!detalle || detalle.length === 0) throw new Error('La SOLPED no tiene líneas de detalle.');
 
-  const { count } = await supabase.from('despachos').select('*', { count: 'exact', head: true });
-  const idDespacho = 'DES-' + String((count || 0) + 1).padStart(4, '0');
+  const { count } = await supabase
+    .from('despachos')
+    .select('*', { count: 'exact', head: true })
+    .eq('codigo_campana', solped.codigo_campana);
+  const idDespacho = `DES-${codigoCorto(solped.codigo_campana)}-` + String((count || 0) + 1).padStart(4, '0');
 
   await supabase.from('despachos').insert({
     id_despacho   : idDespacho,
@@ -962,8 +983,11 @@ export async function crearSolicitudDevolucion(payload: CrearDevolucionPayload):
   const { data: despacho } = await supabase.from('despachos').select('*').eq('id_despacho', payload.id_despacho).single();
   if (!despacho) throw new Error('No se encontró el despacho ' + payload.id_despacho);
 
-  const { count } = await supabase.from('devoluciones').select('*', { count: 'exact', head: true });
-  const idDevolucion = 'DEV-' + String((count || 0) + 1).padStart(4, '0');
+  const { count } = await supabase
+    .from('devoluciones')
+    .select('*', { count: 'exact', head: true })
+    .eq('codigo_campana', despacho.codigo_campana);
+  const idDevolucion = `DEV-${codigoCorto(despacho.codigo_campana)}-` + String((count || 0) + 1).padStart(4, '0');
 
   await supabase.from('devoluciones').insert({
     id_devolucion   : idDevolucion,
