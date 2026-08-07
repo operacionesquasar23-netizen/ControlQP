@@ -308,7 +308,7 @@ export interface DespachoParaDevolucion {
 }
 
 export interface CrearDevolucionPayload {
-  id_despacho: string;
+  codigo_campaña: string; 
   codigo_ejecutivo: string;
   lineas: LineaDevolucion[];
 }
@@ -1074,22 +1074,19 @@ export async function obtenerDespachoParaDevolucion(idDespacho: string, codigoEj
 }
 
 export async function crearSolicitudDevolucion(payload: CrearDevolucionPayload): Promise<{ id_devolucion: string }> {
-  const { data: yaExiste } = await supabase.from('devoluciones').select('id_devolucion').eq('id_despacho', payload.id_despacho).single();
-  if (yaExiste) throw new Error('Ya existe una solicitud de devolución para este despacho.');
+  const partes  = payload.codigo_campaña.split('-');
+  const prefijo = partes[1] + partes[2];
 
-  const { data: despacho } = await supabase.from('despachos').select('*').eq('id_despacho', payload.id_despacho).single();
-  if (!despacho) throw new Error('No se encontró el despacho ' + payload.id_despacho);
-
-  const { count } = await supabase
-    .from('devoluciones')
+  const { count } = await supabase.from('devoluciones')
     .select('*', { count: 'exact', head: true })
-    .eq('codigo_campana', despacho.codigo_campana);
-  const idDevolucion = `DEV-${codigoCorto(despacho.codigo_campana)}-` + String((count || 0) + 1).padStart(4, '0');
+    .eq('codigo_campana', payload.codigo_campaña);
+
+  const idDevolucion = 'DEV-' + prefijo + '-' + String((count || 0) + 1).padStart(4, '0');
 
   await supabase.from('devoluciones').insert({
     id_devolucion   : idDevolucion,
-    id_despacho     : payload.id_despacho,
-    codigo_campana  : despacho.codigo_campana,
+    id_despacho     : null,
+    codigo_campana  : payload.codigo_campaña,
     codigo_ejecutivo: payload.codigo_ejecutivo,
     fecha_solicitud : new Date().toISOString(),
     estado          : 'pendiente',
