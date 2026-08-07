@@ -13,7 +13,7 @@ import {
   type CampañaResumen,
   type CampañaProducto,
 } from '@/lib/api';
-import BuscadorCampaña from '@/components/BuscadorCampana';
+import BuscadorCampaña from '@/components/BuscadorCampaña';
 
 interface LineaForm {
   nombre_lugar: string;
