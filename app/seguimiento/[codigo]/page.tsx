@@ -17,6 +17,11 @@ export default function ExpedientePage({ params }: { params: { codigo: string } 
   const [pestaña, setPestaña] = useState<Pestaña>('stock');
   const [saliendo, setSaliendo] = useState(false);
   const [fotoAmpliada, setFotoAmpliada] = useState<string | null>(null);
+  const [abierto, setAbierto] = useState<string | null>(null);
+
+  function alternar(idItem: string) {
+    setAbierto((prev) => (prev === idItem ? null : idItem));
+  }
 
   useEffect(() => {
     const sesion = obtenerSesion();
@@ -69,7 +74,7 @@ export default function ExpedientePage({ params }: { params: { codigo: string } 
           {PESTAÑAS.map((p) => (
             <button
               key={p.key}
-              onClick={() => setPestaña(p.key)}
+              onClick={() => { setPestaña(p.key); setAbierto(null); }}
               className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                 pestaña === p.key
                   ? 'border-blue-700 text-blue-700'
@@ -133,8 +138,13 @@ export default function ExpedientePage({ params }: { params: { codigo: string } 
                   <EmptyState icon="📥" texto="Sin fichas de ingreso registradas." />
                 ) : expediente.ingresos.map((f) => (
                   <div key={f.id_ficha} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                    <div className="px-6 py-4 flex items-center justify-between border-b border-gray-50">
+                    <button
+                      type="button"
+                      onClick={() => alternar(f.id_ficha)}
+                      className="w-full px-6 py-4 flex items-center justify-between border-b border-gray-50 hover:bg-gray-50/50 transition-colors text-left"
+                    >
                       <div className="flex items-center gap-2">
+                        <span className="text-gray-300 text-xs">{abierto === f.id_ficha ? '▾' : '▸'}</span>
                         <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">{f.id_ficha}</span>
                         <span className="text-xs text-gray-400">{formatearFecha(f.fecha_envio)}</span>
                       </div>
@@ -143,7 +153,8 @@ export default function ExpedientePage({ params }: { params: { codigo: string } 
                       }`}>
                         {f.estado === 'recibida' ? '✅ Recibida' : '⏳ Pendiente'}
                       </span>
-                    </div>
+                    </button>
+                    {abierto === f.id_ficha && (
                     <table className="w-full">
                       <thead>
                         <tr className="bg-gray-50">
@@ -202,6 +213,7 @@ export default function ExpedientePage({ params }: { params: { codigo: string } 
                         })}
                       </tbody>
                     </table>
+                    )}
                   </div>
                 ))}
               </div>
@@ -230,8 +242,13 @@ export default function ExpedientePage({ params }: { params: { codigo: string } 
 
                   return (
                     <div key={s.id_solped} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                      <div className="px-6 py-4 flex items-center justify-between border-b border-gray-50">
+                      <button
+                        type="button"
+                        onClick={() => alternar(s.id_solped)}
+                        className="w-full px-6 py-4 flex items-center justify-between border-b border-gray-50 hover:bg-gray-50/50 transition-colors text-left"
+                      >
                         <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-gray-300 text-xs">{abierto === s.id_solped ? '▾' : '▸'}</span>
                           <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">{s.id_solped}</span>
                           <span className="text-xs text-gray-400">v{s.version}</span>
                           <span className="text-xs text-gray-400">Despacho: {formatearFecha(s.fecha_despacho)}</span>
@@ -246,8 +263,10 @@ export default function ExpedientePage({ params }: { params: { codigo: string } 
                             ? '✅ Despachada'
                             : `${cantidadDespachadas} / ${totalTiendas} tiendas despachadas`}
                         </span>
-                      </div>
+                      </button>
 
+                      {abierto === s.id_solped && (
+                      <>
                       {/* Detalle SOLPED agrupado por lugar */}
                       {(() => {
                         const lugares = s.detalle.reduce((acc, l) => {
@@ -321,6 +340,8 @@ export default function ExpedientePage({ params }: { params: { codigo: string } 
                           ⚠️ Quedan {totalTiendas - cantidadDespachadas} tienda{totalTiendas - cantidadDespachadas !== 1 ? 's' : ''} sin despachar
                         </div>
                       )}
+                      </>
+                      )}
                     </div>
                   );
                 })}
@@ -334,8 +355,13 @@ export default function ExpedientePage({ params }: { params: { codigo: string } 
                   <EmptyState icon="↩️" texto="Sin solicitudes de devolución registradas." />
                 ) : expediente.solicitudesDevolucion.map((d) => (
                   <div key={d.id_devolucion} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                    <div className="px-6 py-4 flex items-center justify-between border-b border-gray-50">
+                    <button
+                      type="button"
+                      onClick={() => alternar(d.id_devolucion)}
+                      className="w-full px-6 py-4 flex items-center justify-between border-b border-gray-50 hover:bg-gray-50/50 transition-colors text-left"
+                    >
                       <div className="flex items-center gap-2">
+                        <span className="text-gray-300 text-xs">{abierto === d.id_devolucion ? '▾' : '▸'}</span>
                         <span className="text-xs font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full">{d.id_devolucion}</span>
                         <span className="text-xs text-gray-400">← {d.id_despacho}</span>
                         <span className="text-xs text-gray-400">{formatearFecha(d.fecha_solicitud)}</span>
@@ -345,8 +371,10 @@ export default function ExpedientePage({ params }: { params: { codigo: string } 
                       }`}>
                         {d.estado === 'recibida' ? '✅ Confirmada' : '⏳ Pendiente'}
                       </span>
-                    </div>
+                    </button>
 
+                    {abierto === d.id_devolucion && (
+                    <>
                     {/* Detalle devolución agrupado por lugar */}
                     {(() => {
                       const lugares = d.detalle.reduce((acc, l) => {
@@ -395,6 +423,8 @@ export default function ExpedientePage({ params }: { params: { codigo: string } 
                       <div className="px-6 py-3 bg-amber-50 border-t border-amber-100 text-xs text-amber-700">
                         ⏳ Esperando confirmación de almacén
                       </div>
+                    )}
+                    </>
                     )}
                   </div>
                 ))}
