@@ -269,6 +269,28 @@ export interface ConfirmarDevolucionPayload {
   cantidades_recibidas?: CantidadRecibidaDevolucion[];
 }
 
+export interface LineaRecepcionDevolucion {
+  nombre_producto: string;
+  cantidad_devuelta: number;
+  cantidad_recibida: number;
+}
+
+export interface ConfirmarDevolucionTiendaPayload {
+  id_devolucion: string;
+  codigo_almacen: string;
+  nombre_lugar: string;
+  url_foto: string;
+  observaciones?: string;
+  lineas: LineaRecepcionDevolucion[];
+}
+
+export interface TiendaDevolucion {
+  nombre_lugar: string;
+  estado: 'pendiente' | 'confirmado';
+  fecha_confirmacion?: string;
+  lineas: LineaDevolucion[];
+}
+
 export interface LineaDevolucion {
   nombre_lugar: string;
   nombre_producto: string;
@@ -399,6 +421,7 @@ export interface LineaDevolucionSeguimiento {
 }
 
 export interface ConfirmacionDevolucion {
+  nombre_lugar: string;
   fecha: string;
   recibido_por: string;
   observaciones: string;
@@ -410,7 +433,7 @@ export interface DevolucionSeguimiento {
   id_despacho: string;
   fecha_solicitud: string;
   estado: string;
-  confirmacion: ConfirmacionDevolucion | null;
+  confirmaciones: ConfirmacionDevolucion[];
   detalle: LineaDevolucionSeguimiento[];
 }
 
@@ -1106,7 +1129,7 @@ export async function crearSolicitudDevolucion(payload: CrearDevolucionPayload):
 }
 
 export async function listarDevolucionesPendientes(): Promise<DevolucionPendiente[]> {
-  const { data: devs } = await supabase.from('devoluciones').select('*').eq('estado', 'pendiente');
+  const { data: devs } = await supabase.from('devoluciones').select('*').in('estado', ['pendiente', 'parcialmente_recibida']);
   if (!devs) return [];
 
   const resultado: DevolucionPendiente[] = [];
@@ -1151,30 +1174,79 @@ export async function obtenerDevolucionParaConfirmar(idDevolucion: string): Prom
   };
 }
 
-export async function confirmarDevolucion(payload: ConfirmarDevolucionPayload): Promise<{ confirmado: boolean }> {
+// Devuelve el set de tiendas que ya tienen una recepción de devolución confirmada
+async function obtenerTiendasDevolucionRecibidas(idDevolucion: string): Promise<Set<string>> {
+  const { data } = await supabase.from('devoluciones_recepcion').select('nombre_lugar').eq('id_devolucion', idDevolucion);
+  return new Set((data || []).map((d: any) => d.nombre_lugar).filter(Boolean));
+}
+
+// Agrupa el detalle de la devolución por tienda y marca cuáles ya fueron confirmadas por almacén
+export async function obtenerEstadoTiendasDevolucion(idDevolucion: string): Promise<TiendaDevolucion[]> {
+  const { data: detalle } = await supabase.from('devoluciones_detalle').select('*').eq('id_devolucion', idDevolucion);
+  const { data: recepciones } = await supabase.from('devoluciones_recepcion').select('nombre_lugar,fecha_recepcion').eq('id_devolucion', idDevolucion);
+
+  const porTienda = (detalle || []).reduce((acc: Record<string, LineaDevolucion[]>, d: any) => {
+    if (!acc[d.nombre_lugar]) acc[d.nombre_lugar] = [];
+    acc[d.nombre_lugar].push({ nombre_lugar: d.nombre_lugar, nombre_producto: d.nombre_producto, cantidad_despachada: Number(d.cantidad_despachada), cantidad_devuelta: Number(d.cantidad_devuelta) });
+    return acc;
+  }, {});
+
+  return Object.entries(porTienda).map(([nombre_lugar, lineas]) => {
+    const rec = (recepciones || []).find((r: any) => r.nombre_lugar === nombre_lugar);
+    return {
+      nombre_lugar,
+      estado: rec ? 'confirmado' : 'pendiente',
+      fecha_confirmacion: rec?.fecha_recepcion,
+      lineas,
+    };
+  });
+}
+
+// Recalcula el estado de la devolución según cuántas tiendas ya fueron confirmadas
+async function recalcularEstadoDevolucion(idDevolucion: string): Promise<void> {
+  const { data: detalle } = await supabase.from('devoluciones_detalle').select('nombre_lugar').eq('id_devolucion', idDevolucion);
+  const tiendasTotales = new Set((detalle || []).map((d: any) => d.nombre_lugar));
+  const tiendasRecibidas = await obtenerTiendasDevolucionRecibidas(idDevolucion);
+
+  let nuevoEstado: string;
+  if (tiendasRecibidas.size === 0) nuevoEstado = 'pendiente';
+  else if (tiendasRecibidas.size >= tiendasTotales.size) nuevoEstado = 'recibida';
+  else nuevoEstado = 'parcialmente_recibida';
+
+  await supabase.from('devoluciones').update({ estado: nuevoEstado }).eq('id_devolucion', idDevolucion);
+}
+
+export async function confirmarDevolucionTienda(payload: ConfirmarDevolucionTiendaPayload): Promise<{ confirmado: boolean }> {
   const { data: d } = await supabase.from('devoluciones').select('*').eq('id_devolucion', payload.id_devolucion).single();
   if (!d) throw new Error('No se encontró la devolución ' + payload.id_devolucion);
-  if (d.estado === 'recibida') throw new Error('Esta devolución ya fue confirmada.');
+
+  // Esta tienda no debe haber sido confirmada ya dentro de esta devolución
+  const tiendasRecibidas = await obtenerTiendasDevolucionRecibidas(payload.id_devolucion);
+  if (tiendasRecibidas.has(payload.nombre_lugar)) {
+    throw new Error(`La tienda "${payload.nombre_lugar}" ya fue confirmada para esta devolución.`);
+  }
 
   await supabase.from('devoluciones_recepcion').insert({
     id_devolucion  : payload.id_devolucion,
+    nombre_lugar   : payload.nombre_lugar,
     fecha_recepcion: new Date().toISOString(),
     recibido_por   : payload.codigo_almacen,
     url_foto       : payload.url_foto,
     observaciones  : payload.observaciones || '',
   });
 
-  // Actualizar cantidades recibidas en detalle
-  for (const c of payload.cantidades_recibidas || []) {
-    await supabase.from('devoluciones_detalle').update({ cantidad_recibida: c.cantidad_recibida })
+  for (const l of payload.lineas) {
+    await supabase.from('devoluciones_detalle').update({ cantidad_recibida: l.cantidad_recibida })
       .eq('id_devolucion', payload.id_devolucion)
-      .eq('nombre_lugar', c.nombre_lugar)
-      .eq('nombre_producto', c.nombre_producto);
+      .eq('nombre_lugar', payload.nombre_lugar)
+      .eq('nombre_producto', l.nombre_producto);
 
-    await actualizarStockActual(d.codigo_campana, c.nombre_producto, 0, 0, c.cantidad_recibida);
+    if (l.cantidad_recibida > 0) {
+      await actualizarStockActual(d.codigo_campana, l.nombre_producto, 0, 0, l.cantidad_recibida);
+    }
   }
 
-  await supabase.from('devoluciones').update({ estado: 'recibida' }).eq('id_devolucion', payload.id_devolucion);
+  await recalcularEstadoDevolucion(payload.id_devolucion);
 
   return { confirmado: true };
 }
@@ -1279,19 +1351,20 @@ export async function obtenerExpedienteCampaña(codigoCampaña: string, codigoEj
   }
 
   // Devoluciones
-  const idsDespachos = (await supabase.from('despachos').select('id_despacho').eq('codigo_campana', codigoCampaña)).data?.map((d: any) => d.id_despacho) || [];
-  const { data: devs } = idsDespachos.length > 0 ? await supabase.from('devoluciones').select('*').in('id_despacho', idsDespachos) : { data: [] };
+  const { data: devs } = await supabase.from('devoluciones').select('*').eq('codigo_campana', codigoCampaña);
   const solicitudesDevolucion: DevolucionSeguimiento[] = [];
   for (const d of devs || []) {
     const { data: det } = await supabase.from('devoluciones_detalle').select('*').eq('id_devolucion', d.id_devolucion);
-    const { data: conf } = await supabase.from('devoluciones_recepcion').select('*').eq('id_devolucion', d.id_devolucion).single();
+    const { data: confs } = await supabase.from('devoluciones_recepcion').select('*').eq('id_devolucion', d.id_devolucion);
+    const confirmaciones = (confs || []).map((c: any) => ({ nombre_lugar: c.nombre_lugar, fecha: c.fecha_recepcion, recibido_por: c.recibido_por, observaciones: c.observaciones, url_foto: c.url_foto || '' }));
+    const tiendasConfirmadas = new Set(confirmaciones.map((c) => c.nombre_lugar));
     solicitudesDevolucion.push({
       id_devolucion  : d.id_devolucion,
       id_despacho    : d.id_despacho,
       fecha_solicitud: d.fecha_solicitud,
       estado         : d.estado,
-      confirmacion   : conf ? { fecha: conf.fecha_recepcion, recibido_por: conf.recibido_por, observaciones: conf.observaciones, url_foto: conf.url_foto || '' } : null,
-      detalle        : (det || []).map((l: any) => ({ nombre_lugar: l.nombre_lugar, nombre_producto: l.nombre_producto, cantidad_solicitada: Number(l.cantidad_devuelta), confirmado: !!conf })),
+      confirmaciones,
+      detalle        : (det || []).map((l: any) => ({ nombre_lugar: l.nombre_lugar, nombre_producto: l.nombre_producto, cantidad_solicitada: Number(l.cantidad_devuelta), confirmado: tiendasConfirmadas.has(l.nombre_lugar) })),
     });
   }
 
