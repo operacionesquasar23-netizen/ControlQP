@@ -6,37 +6,20 @@ import { useRouter } from 'next/navigation';
 import { obtenerSesion } from '@/lib/sesion';
 import {
   obtenerDevolucionParaConfirmar,
+  obtenerEstadoTiendasDevolucion,
   subirFotoDevolucion,
-  confirmarDevolucion,
+  confirmarDevolucionTienda,
   formatearFecha,
   type DevolucionPendiente,
+  type TiendaDevolucion,
+  type LineaRecepcionDevolucion,
 } from '@/lib/api';
-
-interface LineaConfirmacion {
-  nombre_lugar: string;
-  nombre_producto: string;
-  cantidad_solicitada: number;
-  cantidad_recibida: string;
-}
 
 export default function ConfirmarDevolucionPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const [codigoAlmacen, setCodigoAlmacen] = useState('');
   const [nombreAlmacen, setNombreAlmacen] = useState('');
   const [listo, setListo] = useState(false);
-  const [devolucion, setDevolucion] = useState<DevolucionPendiente | null>(null);
-  const [cargando, setCargando] = useState(true);
-  const [errorCarga, setErrorCarga] = useState<string | null>(null);
-  const [lineas, setLineas] = useState<LineaConfirmacion[]>([]);
-  const [observaciones, setObservaciones] = useState('');
-  const [foto, setFoto] = useState<{ preview: string; base64: string; mimeType: string; nombre: string } | null>(null);
-  const [subiendo, setSubiendo] = useState(false);
-  const [confirmando, setConfirmando] = useState(false);
-  const [errores, setErrores] = useState<string[]>([]);
-  const [confirmado, setConfirmado] = useState(false);
-  const [saliendo, setSaliendo] = useState(false);
-  const [mostrarModal, setMostrarModal] = useState(false);
-  const inputFotoRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const sesion = obtenerSesion();
@@ -44,23 +27,143 @@ export default function ConfirmarDevolucionPage({ params }: { params: { id: stri
     setCodigoAlmacen(sesion.codigo);
     setNombreAlmacen(sesion.nombre);
     setListo(true);
-    obtenerDevolucionParaConfirmar(params.id)
-      .then((d) => {
-        setDevolucion(d);
-        setLineas(d.detalle.map((l) => ({
-          nombre_lugar      : l.nombre_lugar,
-          nombre_producto   : l.nombre_producto,
-          cantidad_solicitada: Number(l.cantidad_devuelta),
-          cantidad_recibida  : String(l.cantidad_devuelta), // pre-llena con lo solicitado
-        })));
-      })
-      .catch((err) => setErrorCarga(err instanceof Error ? err.message : 'Error cargando devolución.'))
-      .finally(() => setCargando(false));
-  }, [router, params.id]);
+  }, [router]);
 
-  function actualizarLinea(index: number, cantidad: string) {
-    setLineas((prev) => prev.map((l, i) => (i === index ? { ...l, cantidad_recibida: cantidad } : l)));
+  if (!listo) return <div className="min-h-screen bg-slate-50 flex items-center justify-center"><p className="text-sm text-gray-400">Cargando…</p></div>;
+
+  return <PantallaDevolucion id={params.id} codigoAlmacen={codigoAlmacen} nombreAlmacen={nombreAlmacen} />;
+}
+
+function PantallaDevolucion({ id, codigoAlmacen, nombreAlmacen }: { id: string; codigoAlmacen: string; nombreAlmacen: string }) {
+  const router = useRouter();
+  const [devolucion, setDevolucion] = useState<DevolucionPendiente | null>(null);
+  const [tiendas, setTiendas] = useState<TiendaDevolucion[]>([]);
+  const [cargando, setCargando] = useState(true);
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
+  const [saliendo, setSaliendo] = useState(false);
+  const [tiendaSeleccionada, setTiendaSeleccionada] = useState<TiendaDevolucion | null>(null);
+
+  async function cargarDatos() {
+    setCargando(true);
+    try {
+      const [d, t] = await Promise.all([obtenerDevolucionParaConfirmar(id), obtenerEstadoTiendasDevolucion(id)]);
+      setDevolucion(d);
+      setTiendas(t);
+    } catch (err) {
+      setErrorCarga(err instanceof Error ? err.message : 'Error cargando devolución.');
+    } finally {
+      setCargando(false);
+    }
   }
+
+  useEffect(() => { cargarDatos(); }, [id]);
+
+  if (cargando) return <div className="min-h-screen bg-slate-50 flex items-center justify-center"><p className="text-sm text-gray-400">Cargando devolución…</p></div>;
+  if (errorCarga || !devolucion) return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+      <div className="bg-white rounded-2xl p-8 max-w-md w-full text-center">
+        <p className="text-sm text-red-600 mb-4">{errorCarga}</p>
+        <button onClick={() => router.push('/devolucion')} className="text-xs text-gray-400 hover:text-blue-700">← Volver a devoluciones</button>
+      </div>
+    </div>
+  );
+
+  if (tiendaSeleccionada) {
+    return (
+      <FormularioTienda
+        id={id}
+        devolucion={devolucion}
+        codigoAlmacen={codigoAlmacen}
+        nombreAlmacen={nombreAlmacen}
+        tienda={tiendaSeleccionada}
+        onVolver={() => setTiendaSeleccionada(null)}
+        onConfirmado={() => { setTiendaSeleccionada(null); cargarDatos(); }}
+      />
+    );
+  }
+
+  const totalTiendas = tiendas.length;
+  const tiendasConfirmadas = tiendas.filter((t) => t.estado === 'confirmado').length;
+  const todasConfirmadas = totalTiendas > 0 && tiendasConfirmadas === totalTiendas;
+
+  return (
+    <div className={`min-h-screen bg-slate-50 transition-opacity duration-250 ${saliendo ? 'opacity-0' : 'opacity-100'}`}>
+      <div className="bg-brand text-white px-6 py-5 animate-fade-slide-down">
+        <div className="max-w-3xl mx-auto flex items-center justify-between">
+          <button onClick={() => { setSaliendo(true); setTimeout(() => router.push('/devolucion'), 250); }} className="text-white/80 hover:text-white text-sm">← Devoluciones</button>
+          <span className="text-white/80 text-sm">{nombreAlmacen}</span>
+        </div>
+      </div>
+
+      <main className="max-w-3xl mx-auto px-4 py-8">
+        <h1 className="text-2xl font-bold text-gray-900 mb-1">Confirmar devolución</h1>
+        <p className="text-sm text-gray-500 mb-1">{id} · {devolucion.cabecera.cliente} · {devolucion.cabecera.codigo_campaña}</p>
+        <p className="text-xs text-gray-400 mb-1">Solicitada el {formatearFecha(String(devolucion.cabecera.fecha_solicitud))}</p>
+        <p className="text-sm text-gray-500 mb-6">
+          <span className={todasConfirmadas ? 'text-green-700 font-semibold' : 'text-amber-700 font-semibold'}>
+            {tiendasConfirmadas} / {totalTiendas} tiendas confirmadas
+          </span>
+        </p>
+
+        {todasConfirmadas ? (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center mb-6">
+            <div className="w-14 h-14 bg-green-50 rounded-xl flex items-center justify-center text-3xl mb-4 mx-auto">✅</div>
+            <p className="text-sm font-semibold text-gray-900 mb-1">Todas las tiendas ya fueron confirmadas</p>
+            <p className="text-xs text-gray-400">Esta devolución quedó completamente recibida.</p>
+          </div>
+        ) : null}
+
+        <div className="space-y-2">
+          {tiendas.map((t) => (
+            <button
+              key={t.nombre_lugar}
+              type="button"
+              disabled={t.estado === 'confirmado'}
+              onClick={() => setTiendaSeleccionada(t)}
+              className={`w-full flex items-center justify-between rounded-xl border px-4 py-3.5 text-left transition-colors ${
+                t.estado === 'confirmado'
+                  ? 'bg-gray-50 border-gray-100 cursor-default'
+                  : 'bg-white border-gray-100 shadow-sm hover:border-blue-300'
+              }`}
+            >
+              <div>
+                <p className="text-sm font-semibold text-gray-900">{t.nombre_lugar}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{t.lineas.length} producto{t.lineas.length !== 1 ? 's' : ''}</p>
+              </div>
+              {t.estado === 'confirmado' ? (
+                <span className="text-xs font-semibold text-green-700 bg-green-50 px-2.5 py-1 rounded-lg">✅ Confirmado{t.fecha_confirmacion ? ` · ${formatearFecha(t.fecha_confirmacion)}` : ''}</span>
+              ) : (
+                <span className="text-xs font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg">Pendiente</span>
+              )}
+            </button>
+          ))}
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function FormularioTienda({
+  id, devolucion, codigoAlmacen, nombreAlmacen, tienda, onVolver, onConfirmado,
+}: {
+  id: string;
+  devolucion: DevolucionPendiente;
+  codigoAlmacen: string;
+  nombreAlmacen: string;
+  tienda: TiendaDevolucion;
+  onVolver: () => void;
+  onConfirmado: () => void;
+}) {
+  const [cantidades, setCantidades] = useState<Record<string, number>>(
+    () => Object.fromEntries(tienda.lineas.map((l) => [l.nombre_producto, l.cantidad_devuelta]))
+  );
+  const [observaciones, setObservaciones] = useState('');
+  const [foto, setFoto] = useState<{ preview: string; base64: string; mimeType: string; nombre: string } | null>(null);
+  const [subiendo, setSubiendo] = useState(false);
+  const [confirmando, setConfirmando] = useState(false);
+  const [errores, setErrores] = useState<string[]>([]);
+  const [mostrarModal, setMostrarModal] = useState(false);
+  const inputFotoRef = useRef<HTMLInputElement>(null);
 
   function manejarFoto(e: React.ChangeEvent<HTMLInputElement>) {
     const archivo = e.target.files?.[0];
@@ -68,20 +171,26 @@ export default function ConfirmarDevolucionPage({ params }: { params: { id: stri
     const reader = new FileReader();
     reader.onload = (ev) => {
       const dataUrl = ev.target?.result as string;
-      setFoto({ preview: dataUrl, base64: dataUrl.split(',')[1], mimeType: archivo.type, nombre: `devolucion_${params.id}_${Date.now()}.${archivo.type.split('/')[1]}` });
+      setFoto({ preview: dataUrl, base64: dataUrl.split(',')[1], mimeType: archivo.type, nombre: `devolucion_${id}_${tienda.nombre_lugar.replace(/\s+/g, '')}_${Date.now()}.${archivo.type.split('/')[1]}` });
     };
     reader.readAsDataURL(archivo);
     if (inputFotoRef.current) inputFotoRef.current.value = '';
   }
 
+  function cambiarCantidad(nombreProducto: string, valor: string, maximo: number) {
+    let n = Number(valor);
+    if (Number.isNaN(n) || n < 0) n = 0;
+    if (n > maximo) n = maximo; // no puede recibirse más de lo que se solicitó devolver
+    setCantidades((prev) => ({ ...prev, [nombreProducto]: n }));
+  }
+
   function validar(): string[] {
     const errs: string[] = [];
-    if (!foto) errs.push('La foto de la devolución es obligatoria.');
-    lineas.forEach((l, i) => {
-      const cant = Number(l.cantidad_recibida);
-      if (isNaN(cant) || cant < 0) errs.push(`Línea ${i + 1}: la cantidad debe ser 0 o mayor.`);
-      if (cant > l.cantidad_solicitada) errs.push(`${l.nombre_producto} (${l.nombre_lugar}): no puede recibir más de lo solicitado (${l.cantidad_solicitada}).`);
-    });
+    if (!foto) errs.push('La foto de la devolución de esta tienda es obligatoria.');
+    for (const l of tienda.lineas) {
+      const cant = cantidades[l.nombre_producto] ?? 0;
+      if (cant > l.cantidad_devuelta) errs.push(`"${l.nombre_producto}" supera lo solicitado a devolver (${l.cantidad_devuelta}).`);
+    }
     return errs;
   }
 
@@ -97,7 +206,7 @@ export default function ConfirmarDevolucionPage({ params }: { params: { id: stri
     setSubiendo(true);
     let urlFoto = '';
     try {
-      urlFoto = await subirFotoDevolucion(params.id, devolucion!.cabecera.codigo_campaña, foto!.base64, foto!.mimeType, foto!.nombre);
+      urlFoto = await subirFotoDevolucion(id, devolucion.cabecera.codigo_campaña, foto!.base64, foto!.mimeType, foto!.nombre);
     } catch (err) {
       setErrores(['Error al subir la foto: ' + (err instanceof Error ? err.message : 'Error desconocido.')]);
       setSubiendo(false);
@@ -106,18 +215,20 @@ export default function ConfirmarDevolucionPage({ params }: { params: { id: stri
     setSubiendo(false);
     setConfirmando(true);
     try {
-      await confirmarDevolucion({
-        id_devolucion    : params.id,
-        codigo_almacen   : codigoAlmacen,
-        url_foto         : urlFoto,
-        observaciones    : observaciones.trim(),
-        cantidades_recibidas: lineas.map((l) => ({
-          nombre_lugar     : l.nombre_lugar,
-          nombre_producto  : l.nombre_producto,
-          cantidad_recibida: Number(l.cantidad_recibida),
-        })),
+      const lineas: LineaRecepcionDevolucion[] = tienda.lineas.map((l) => ({
+        nombre_producto   : l.nombre_producto,
+        cantidad_devuelta : l.cantidad_devuelta,
+        cantidad_recibida : cantidades[l.nombre_producto] ?? 0,
+      }));
+      await confirmarDevolucionTienda({
+        id_devolucion : id,
+        codigo_almacen: codigoAlmacen,
+        nombre_lugar  : tienda.nombre_lugar,
+        url_foto      : urlFoto,
+        observaciones : observaciones.trim(),
+        lineas,
       });
-      setConfirmado(true);
+      onConfirmado();
     } catch (err) {
       setErrores([err instanceof Error ? err.message : 'Error al confirmar devolución.']);
     } finally {
@@ -125,47 +236,20 @@ export default function ConfirmarDevolucionPage({ params }: { params: { id: stri
     }
   }
 
-  if (!listo || cargando) return <div className="min-h-screen bg-slate-50 flex items-center justify-center"><p className="text-sm text-gray-400">Cargando…</p></div>;
-
-  if (errorCarga || !devolucion) return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
-      <div className="bg-white rounded-2xl p-8 max-w-md w-full text-center">
-        <p className="text-sm text-red-600 mb-4">{errorCarga}</p>
-        <button onClick={() => router.push('/devolucion')} className="text-xs text-gray-400 hover:text-blue-700">← Volver a devoluciones</button>
-      </div>
-    </div>
-  );
-
-  if (confirmado) return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 max-w-md w-full text-center animate-scale-in">
-        <div className="w-14 h-14 bg-green-50 rounded-xl flex items-center justify-center text-3xl mb-4 mx-auto">✅</div>
-        <h1 className="text-xl font-bold text-gray-900 mb-2">Devolución confirmada</h1>
-        <p className="text-sm text-gray-500 mb-2"><strong>{params.id}</strong></p>
-        <p className="text-sm text-gray-500 mb-6">Campaña <strong>{devolucion.cabecera.codigo_campaña}</strong> · {devolucion.cabecera.cliente}</p>
-        <button onClick={() => { setSaliendo(true); setTimeout(() => router.push('/almacen'), 250); }} className="bg-blue-700 hover:bg-blue-800 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors">Volver al inicio</button>
-      </div>
-    </div>
-  );
-
-  const lugares = lineas.reduce((acc, l) => {
-    if (!acc[l.nombre_lugar]) acc[l.nombre_lugar] = [];
-    acc[l.nombre_lugar].push(l);
-    return acc;
-  }, {} as Record<string, LineaConfirmacion[]>);
+  const hayDiferencias = tienda.lineas.some((l) => (cantidades[l.nombre_producto] ?? 0) < l.cantidad_devuelta);
 
   return (
-    <div className={`min-h-screen bg-slate-50 transition-opacity duration-250 ${saliendo ? 'opacity-0' : 'opacity-100'}`}>
-      <div className="bg-brand text-white px-6 py-5 animate-fade-slide-down">
+    <div className="min-h-screen bg-slate-50">
+      <div className="bg-brand text-white px-6 py-5">
         <div className="max-w-3xl mx-auto flex items-center justify-between">
-          <button onClick={() => { setSaliendo(true); setTimeout(() => router.push('/devolucion'), 250); }} className="text-white/80 hover:text-white text-sm">← Devoluciones</button>
+          <button onClick={onVolver} className="text-white/80 hover:text-white text-sm">← Tiendas</button>
           <span className="text-white/80 text-sm">{nombreAlmacen}</span>
         </div>
       </div>
 
       <main className="max-w-3xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-1 animate-fade-slide-up">Confirmar devolución</h1>
-        <p className="text-sm text-gray-500 mb-6 animate-fade-slide-up delay-75">{params.id} · {devolucion.cabecera.cliente} · {devolucion.cabecera.codigo_campaña}</p>
+        <h1 className="text-2xl font-bold text-gray-900 mb-1">{tienda.nombre_lugar}</h1>
+        <p className="text-sm text-gray-500 mb-6">{id} · {devolucion.cabecera.cliente} · {devolucion.cabecera.codigo_campaña}</p>
 
         {errores.length > 0 && (
           <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-5 text-red-800">
@@ -173,69 +257,47 @@ export default function ConfirmarDevolucionPage({ params }: { params: { id: stri
           </div>
         )}
 
-        {/* Cantidades */}
-        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-4 animate-fade-slide-up delay-75">
-          <p className="text-sm font-semibold text-gray-900 mb-1">Productos a recibir</p>
-          <p className="text-xs text-gray-400 mb-4">
-            Solicitado el {formatearFecha(String(devolucion.cabecera.fecha_solicitud))} · Despacho {devolucion.cabecera.id_despacho}
-          </p>
-          <div className="space-y-5">
-            {Object.entries(lugares).map(([lugar, items]) => (
-              <div key={lugar}>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{lugar}</p>
-                <div className="grid grid-cols-[2fr_1fr_1fr] gap-2 mb-1 px-1">
-                  <span className="text-xs text-gray-400">Producto</span>
-                  <span className="text-xs text-gray-400 text-center">Solicitado</span>
-                  <span className="text-xs text-gray-400 text-center">Recibido</span>
+        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-4">
+          <p className="text-sm font-semibold text-gray-900 mb-3">Cantidad realmente recibida</p>
+          <p className="text-xs text-gray-400 mb-4">Editable — no puede superar lo que se solicitó devolver.</p>
+          <div className="space-y-3">
+            {tienda.lineas.map((l) => {
+              const recibido = cantidades[l.nombre_producto] ?? 0;
+              const diferencia = recibido < l.cantidad_devuelta;
+              return (
+                <div key={l.nombre_producto} className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm text-gray-900">{l.nombre_producto}</p>
+                    <p className="text-xs text-gray-400">Solicitado: {l.cantidad_devuelta}</p>
+                    {diferencia && <p className="text-xs text-amber-600">Faltan {l.cantidad_devuelta - recibido}</p>}
+                  </div>
+                  <input
+                    type="number"
+                    min={0}
+                    max={l.cantidad_devuelta}
+                    value={recibido}
+                    onChange={(e) => cambiarCantidad(l.nombre_producto, e.target.value, l.cantidad_devuelta)}
+                    className={`w-24 h-9 rounded-lg border px-3 text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-500 ${diferencia ? 'border-amber-300 bg-amber-50' : 'border-gray-200'}`}
+                  />
                 </div>
-                <div className="space-y-2">
-                  {items.map((linea, i) => {
-                    const recibido  = Number(linea.cantidad_recibida);
-                    const diferencia = recibido < linea.cantidad_solicitada;
-                    const idx = lineas.findIndex(
-                      (l) => l.nombre_lugar === linea.nombre_lugar && l.nombre_producto === linea.nombre_producto
-                    );
-                    return (
-                      <div key={i} className="grid grid-cols-[2fr_1fr_1fr] gap-2 items-center">
-                        <p className="text-sm text-gray-900">{linea.nombre_producto}</p>
-                        <p className="text-sm text-gray-400 text-center">{linea.cantidad_solicitada}</p>
-                        <div>
-                          <input
-                            type="number"
-                            min="0"
-                            max={linea.cantidad_solicitada}
-                            value={linea.cantidad_recibida}
-                            onChange={(e) => actualizarLinea(idx, e.target.value)}
-                            className={`w-full h-9 rounded-lg border px-3 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500 ${diferencia && recibido >= 0 ? 'border-amber-300 bg-amber-50' : 'border-gray-200'}`}
-                          />
-                          {diferencia && recibido >= 0 && (
-                            <p className="text-xs text-amber-600 mt-0.5 text-center">Faltan {linea.cantidad_solicitada - recibido}</p>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
-          {lineas.some((l) => Number(l.cantidad_recibida) < l.cantidad_solicitada) && (
+          {hayDiferencias && (
             <p className="text-xs text-amber-600 mt-4">⚠️ Algunas cantidades son menores a las solicitadas — quedará registrada la diferencia.</p>
           )}
         </section>
 
-        {/* Observaciones */}
-        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-4 animate-fade-slide-up delay-150">
+        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-4">
           <p className="text-sm font-semibold text-gray-900 mb-3">Observaciones (opcional)</p>
           <input type="text" placeholder="Ej: Un elemento con daño leve" value={observaciones} onChange={(e) => setObservaciones(e.target.value)} className="w-full h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </section>
 
-        {/* Foto */}
-        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6 animate-fade-slide-up delay-225">
+        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <p className="text-sm font-semibold text-gray-900">Foto de la devolución <span className="text-red-500">*</span></p>
-              <p className="text-xs text-gray-400 mt-0.5">Foto general de los elementos recibidos</p>
+              <p className="text-sm font-semibold text-gray-900">Foto de la devolución de esta tienda <span className="text-red-500">*</span></p>
+              <p className="text-xs text-gray-400 mt-0.5">Foto de lo recibido de {tienda.nombre_lugar}</p>
             </div>
             {foto && <button type="button" onClick={() => inputFotoRef.current?.click()} className="text-xs font-semibold text-blue-700 hover:text-blue-800 border border-blue-200 rounded-lg px-3 py-1.5 transition-colors">📷 Cambiar</button>}
           </div>
@@ -253,25 +315,23 @@ export default function ConfirmarDevolucionPage({ params }: { params: { id: stri
           <input ref={inputFotoRef} type="file" accept="image/*" capture="environment" onChange={manejarFoto} className="hidden" />
         </section>
 
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-3">
+          <button onClick={onVolver} disabled={subiendo || confirmando} className="px-5 py-2.5 rounded-lg text-sm font-semibold text-gray-600 border border-gray-200 hover:bg-gray-50 transition-colors">Cancelar</button>
           <button onClick={solicitarConfirmacion} disabled={subiendo || confirmando}
             className="bg-green-700 hover:bg-green-800 disabled:opacity-60 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors">
-            {subiendo ? <span className="animate-pulse-soft">Subiendo foto…</span> : confirmando ? <span className="animate-pulse-soft">Confirmando…</span> : 'Confirmar devolución'}
+            {subiendo ? 'Subiendo foto…' : confirmando ? 'Confirmando…' : `Confirmar devolución de ${tienda.nombre_lugar}`}
           </button>
         </div>
       </main>
 
-      {/* Modal confirmación */}
       {mostrarModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4 animate-fade-in">
           <div className="bg-white rounded-2xl p-8 max-w-sm w-full shadow-2xl animate-scale-in">
             <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center text-2xl mb-4">⚠️</div>
             <h2 className="text-lg font-bold text-gray-900 mb-1">¿Confirmar devolución?</h2>
-            <p className="text-sm text-gray-500 mb-1">Devolución <strong>{params.id}</strong></p>
-            {lineas.some((l) => Number(l.cantidad_recibida) < l.cantidad_solicitada) && (
-              <p className="text-xs text-amber-600 mb-3">⚠️ Hay cantidades menores a las solicitadas.</p>
-            )}
-            <p className="text-sm text-gray-500 mb-6">Esta acción es irreversible.</p>
+            <p className="text-sm text-gray-500 mb-1">{tienda.nombre_lugar} · {id}</p>
+            {hayDiferencias && <p className="text-xs text-amber-600 mb-3">⚠️ Hay cantidades menores a las solicitadas.</p>}
+            <p className="text-sm text-gray-500 mb-6">Esta acción es irreversible para esta tienda. Podrás seguir confirmando las demás tiendas por separado.</p>
             <div className="flex gap-3">
               <button onClick={() => setMostrarModal(false)} className="flex-1 h-10 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors">Cancelar</button>
               <button onClick={manejarConfirmar} className="flex-1 h-10 rounded-lg bg-green-700 hover:bg-green-800 text-white text-sm font-semibold transition-colors">Sí, confirmar</button>

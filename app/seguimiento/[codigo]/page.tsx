@@ -363,19 +363,20 @@ export default function ExpedientePage({ params }: { params: { codigo: string } 
                       <div className="flex items-center gap-2">
                         <span className="text-gray-300 text-xs">{abierto === d.id_devolucion ? '▾' : '▸'}</span>
                         <span className="text-xs font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full">{d.id_devolucion}</span>
-                        <span className="text-xs text-gray-400">← {d.id_despacho}</span>
                         <span className="text-xs text-gray-400">{formatearFecha(d.fecha_solicitud)}</span>
                       </div>
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                        d.estado === 'recibida' ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'
+                        d.estado === 'recibida' ? 'bg-green-50 text-green-700' :
+                        d.estado === 'parcialmente_recibida' ? 'bg-amber-50 text-amber-700' :
+                        'bg-amber-50 text-amber-700'
                       }`}>
-                        {d.estado === 'recibida' ? '✅ Confirmada' : '⏳ Pendiente'}
+                        {d.estado === 'recibida' ? '✅ Confirmada' : d.estado === 'parcialmente_recibida' ? '⏳ Parcial' : '⏳ Pendiente'}
                       </span>
                     </button>
 
                     {abierto === d.id_devolucion && (
                     <>
-                    {/* Detalle devolución agrupado por lugar */}
+                    {/* Detalle devolución agrupado por lugar, con estado por tienda */}
                     {(() => {
                       const lugares = d.detalle.reduce((acc, l) => {
                         if (!acc[l.nombre_lugar]) acc[l.nombre_lugar] = [];
@@ -386,7 +387,14 @@ export default function ExpedientePage({ params }: { params: { codigo: string } 
                         <div className="px-6 py-4 space-y-3">
                           {Object.entries(lugares).map(([lugar, lineas]) => (
                             <div key={lugar}>
-                              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">{lugar}</p>
+                              <div className="flex items-center gap-2 mb-1">
+                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{lugar}</p>
+                                {lineas[0]?.confirmado ? (
+                                  <span className="text-[10px] font-semibold text-green-700 bg-green-50 px-1.5 py-0.5 rounded-full">✅ Confirmado</span>
+                                ) : (
+                                  <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-full">⏳ Pendiente</span>
+                                )}
+                              </div>
                               <div className="space-y-1">
                                 {lineas.map((l, i) => (
                                   <div key={i} className="flex justify-between text-sm">
@@ -401,29 +409,38 @@ export default function ExpedientePage({ params }: { params: { codigo: string } 
                       );
                     })()}
 
-                    {/* Info confirmación + foto */}
-                    {d.confirmacion && (
-                      <div className="px-6 py-3 bg-green-50 border-t border-green-100 flex items-center justify-between">
-                        <p className="text-xs text-green-700">
-                          ✅ Confirmada el {formatearFecha(d.confirmacion.fecha)} por {d.confirmacion.recibido_por}
-                          {d.confirmacion.observaciones && ` · ${d.confirmacion.observaciones}`}
-                        </p>
-                        {d.confirmacion.url_foto && (
-                          <button onClick={() => setFotoAmpliada(d.confirmacion!.url_foto.replace('&sz=w200', '&sz=w1200'))}>
-                            <img
-                              src={d.confirmacion.url_foto}
-                              alt="Foto devolución"
-                              className="w-10 h-10 object-cover rounded-lg hover:scale-110 transition-transform border border-green-200 ml-3"
-                            />
-                          </button>
-                        )}
+                    {/* Info de cada confirmación de tienda, con su foto */}
+                    {d.confirmaciones.length > 0 && (
+                      <div className="border-t border-green-100">
+                        {d.confirmaciones.map((c, i) => (
+                          <div key={i} className="px-6 py-3 bg-green-50 border-b border-green-100 last:border-b-0 flex items-center justify-between">
+                            <p className="text-xs text-green-700">
+                              ✅ {c.nombre_lugar} · Confirmada el {formatearFecha(c.fecha)} por {c.recibido_por}
+                              {c.observaciones && ` · ${c.observaciones}`}
+                            </p>
+                            {c.url_foto && (
+                              <button onClick={() => setFotoAmpliada(c.url_foto.replace('&sz=w200', '&sz=w1200'))}>
+                                <img
+                                  src={c.url_foto}
+                                  alt={`Foto devolución ${c.nombre_lugar}`}
+                                  className="w-10 h-10 object-cover rounded-lg hover:scale-110 transition-transform border border-green-200 ml-3"
+                                />
+                              </button>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     )}
-                    {!d.confirmacion && (
-                      <div className="px-6 py-3 bg-amber-50 border-t border-amber-100 text-xs text-amber-700">
-                        ⏳ Esperando confirmación de almacén
-                      </div>
-                    )}
+                    {d.estado !== 'recibida' && (() => {
+                      const tiendasTotales = new Set(d.detalle.map((l) => l.nombre_lugar)).size;
+                      const tiendasConfirmadas = new Set(d.confirmaciones.map((c) => c.nombre_lugar)).size;
+                      const faltan = tiendasTotales - tiendasConfirmadas;
+                      return (
+                        <div className="px-6 py-3 bg-amber-50 border-t border-amber-100 text-xs text-amber-700">
+                          ⏳ Esperando confirmación de almacén en {faltan} tienda{faltan !== 1 ? 's' : ''}
+                        </div>
+                      );
+                    })()}
                     </>
                     )}
                   </div>
