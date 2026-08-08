@@ -417,6 +417,7 @@ export interface LineaDevolucionSeguimiento {
   nombre_lugar: string;
   nombre_producto: string;
   cantidad_solicitada: number;
+  cantidad_recibida: number | null;
   confirmado: boolean;
 }
 
@@ -1364,7 +1365,7 @@ export async function obtenerExpedienteCampaña(codigoCampaña: string, codigoEj
       fecha_solicitud: d.fecha_solicitud,
       estado         : d.estado,
       confirmaciones,
-      detalle        : (det || []).map((l: any) => ({ nombre_lugar: l.nombre_lugar, nombre_producto: l.nombre_producto, cantidad_solicitada: Number(l.cantidad_devuelta), confirmado: tiendasConfirmadas.has(l.nombre_lugar) })),
+      detalle        : (det || []).map((l: any) => ({ nombre_lugar: l.nombre_lugar, nombre_producto: l.nombre_producto, cantidad_solicitada: Number(l.cantidad_devuelta), cantidad_recibida: l.cantidad_recibida !== null && l.cantidad_recibida !== undefined ? Number(l.cantidad_recibida) : null, confirmado: tiendasConfirmadas.has(l.nombre_lugar) })),
     });
   }
 

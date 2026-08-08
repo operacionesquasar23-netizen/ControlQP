@@ -240,6 +240,13 @@ export default function ExpedientePage({ params }: { params: { codigo: string } 
                     });
                   });
 
+                  // Info del despacho (foto, fecha, responsable) por tienda
+                  const despachoPorTienda = new Map<string, typeof s.despachos[number]>();
+                  s.despachos.forEach((desp) => {
+                    const lugar = desp.detalle[0]?.nombre_lugar;
+                    if (lugar) despachoPorTienda.set(lugar, desp);
+                  });
+
                   return (
                     <div key={s.id_solped} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                       <button
@@ -267,7 +274,6 @@ export default function ExpedientePage({ params }: { params: { codigo: string } 
 
                       {abierto === s.id_solped && (
                       <>
-                      {/* Detalle SOLPED agrupado por lugar */}
                       {(() => {
                         const lugares = s.detalle.reduce((acc, l) => {
                           if (!acc[l.nombre_lugar]) acc[l.nombre_lugar] = [];
@@ -275,66 +281,71 @@ export default function ExpedientePage({ params }: { params: { codigo: string } 
                           return acc;
                         }, {} as Record<string, typeof s.detalle>);
                         return (
-                          <div className="px-6 py-4 space-y-3">
-                            {Object.entries(lugares).map(([lugar, lineas]) => (
-                              <div key={lugar}>
-                                <div className="flex items-center gap-2 mb-1">
-                                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{lugar}</p>
-                                  {tiendasDespachadas.has(lugar) ? (
-                                    <span className="text-[10px] font-semibold text-green-700 bg-green-50 px-1.5 py-0.5 rounded-full">✅ Despachado</span>
-                                  ) : (
-                                    <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-full">⏳ Pendiente</span>
-                                  )}
+                          <div className="space-y-4 py-4">
+                            {Object.entries(lugares).map(([lugar, lineas]) => {
+                              const desp = despachoPorTienda.get(lugar);
+                              return (
+                                <div key={lugar}>
+                                  <div className="flex items-center gap-2 px-6 mb-2">
+                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{lugar}</p>
+                                    {desp ? (
+                                      <span className="text-[10px] font-semibold text-green-700 bg-green-50 px-1.5 py-0.5 rounded-full">✅ Despachado {formatearFecha(desp.fecha)}</span>
+                                    ) : (
+                                      <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-full">⏳ Pendiente</span>
+                                    )}
+                                  </div>
+                                  <table className="w-full">
+                                    <thead>
+                                      <tr className="bg-gray-50">
+                                        <th className="text-left text-xs text-gray-400 font-medium px-6 py-2">Producto</th>
+                                        <th className="text-center text-xs text-gray-400 font-medium px-3 py-2">Solicitado</th>
+                                        <th className="text-center text-xs text-gray-400 font-medium px-3 py-2">Despachado</th>
+                                        <th className="text-center text-xs text-gray-400 font-medium px-3 py-2">Estado</th>
+                                        <th className="text-center text-xs text-gray-400 font-medium px-3 py-2 pr-6">Foto</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {lineas.map((l, i) => {
+                                        const clave = `${lugar}__${l.nombre_producto}`;
+                                        const despachadoReal = despachadoPorTiendaProducto.get(clave);
+                                        const completo   = despachadoReal !== undefined && despachadoReal >= l.cantidad_solicitada;
+                                        const parcial    = despachadoReal !== undefined && despachadoReal > 0 && despachadoReal < l.cantidad_solicitada;
+                                        const sinDespachar = despachadoReal === undefined;
+                                        return (
+                                          <tr key={i} className="border-t border-gray-50">
+                                            <td className="px-6 py-2.5 text-sm text-gray-900">{l.nombre_producto}</td>
+                                            <td className="px-3 py-2.5 text-center text-sm text-gray-500">{l.cantidad_solicitada}</td>
+                                            <td className="px-3 py-2.5 text-center">
+                                              {!sinDespachar ? (
+                                                <p className={`text-sm font-medium ${completo ? 'text-green-700' : parcial ? 'text-amber-600' : 'text-red-600'}`}>{despachadoReal}</p>
+                                              ) : (
+                                                <span className="text-gray-300 text-sm">—</span>
+                                              )}
+                                            </td>
+                                            <td className="px-3 py-2.5 text-center text-sm">
+                                              {sinDespachar ? '⏳' : completo ? '✅' : '⚠️ Parcial'}
+                                            </td>
+                                            <td className="px-3 py-2.5 pr-6 text-center">
+                                              {desp?.url_foto ? (
+                                                <button onClick={() => setFotoAmpliada(desp.url_foto.replace('&sz=w200', '&sz=w1200'))}>
+                                                  <img src={desp.url_foto} alt={`Foto despacho ${lugar}`}
+                                                    className="w-10 h-10 object-cover rounded-lg hover:scale-110 transition-transform border border-gray-100 mx-auto" />
+                                                </button>
+                                              ) : (
+                                                <span className="text-gray-200">🖼</span>
+                                              )}
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
                                 </div>
-                                <div className="space-y-1">
-                                  {lineas.map((l, i) => {
-                                    const clave = `${lugar}__${l.nombre_producto}`;
-                                    const despachadoReal = despachadoPorTiendaProducto.get(clave);
-                                    const hayDiferencia = despachadoReal !== undefined && despachadoReal !== l.cantidad_solicitada;
-                                    return (
-                                      <div key={i} className="flex justify-between text-sm">
-                                        <span className="text-gray-700">{l.nombre_producto}</span>
-                                        {despachadoReal !== undefined ? (
-                                          <span className={hayDiferencia ? 'text-amber-600 font-medium' : 'text-gray-500'}>
-                                            {despachadoReal} / {l.cantidad_solicitada} solicitado
-                                          </span>
-                                        ) : (
-                                          <span className="text-gray-500">× {l.cantidad_solicitada}</span>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         );
                       })()}
-
-                      {/* Info de cada despacho confirmado, con su foto */}
-                      {s.despachos.length > 0 && (
-                        <div className="border-t border-green-100">
-                          {s.despachos.map((desp) => {
-                            const tienda = desp.detalle[0]?.nombre_lugar || '—';
-                            return (
-                              <div key={desp.id_despacho} className="px-6 py-3 bg-green-50 border-b border-green-100 last:border-b-0 flex items-center justify-between">
-                                <p className="text-xs text-green-700">
-                                  🚚 {tienda} · Despachado el {formatearFecha(desp.fecha)} por {desp.despachado_por} · {desp.id_despacho}
-                                </p>
-                                {desp.url_foto && (
-                                  <button onClick={() => setFotoAmpliada(desp.url_foto.replace('&sz=w200', '&sz=w1200'))}>
-                                    <img
-                                      src={desp.url_foto}
-                                      alt={`Foto despacho ${tienda}`}
-                                      className="w-10 h-10 object-cover rounded-lg hover:scale-110 transition-transform border border-green-200 ml-3"
-                                    />
-                                  </button>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
                       {!todasDespachadas && (
                         <div className="px-6 py-3 bg-amber-50 border-t border-amber-100 text-xs text-amber-700">
                           ⚠️ Quedan {totalTiendas - cantidadDespachadas} tienda{totalTiendas - cantidadDespachadas !== 1 ? 's' : ''} sin despachar
@@ -376,57 +387,89 @@ export default function ExpedientePage({ params }: { params: { codigo: string } 
 
                     {abierto === d.id_devolucion && (
                     <>
-                    {/* Detalle devolución agrupado por lugar, con estado por tienda */}
+                    {/* Detalle devolución agrupado por lugar, en tabla como Ingresos */}
                     {(() => {
                       const lugares = d.detalle.reduce((acc, l) => {
                         if (!acc[l.nombre_lugar]) acc[l.nombre_lugar] = [];
                         acc[l.nombre_lugar].push(l);
                         return acc;
                       }, {} as Record<string, typeof d.detalle>);
+                      const confPorTienda = new Map(d.confirmaciones.map((c) => [c.nombre_lugar, c]));
                       return (
-                        <div className="px-6 py-4 space-y-3">
-                          {Object.entries(lugares).map(([lugar, lineas]) => (
-                            <div key={lugar}>
-                              <div className="flex items-center gap-2 mb-1">
-                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{lugar}</p>
-                                {lineas[0]?.confirmado ? (
-                                  <span className="text-[10px] font-semibold text-green-700 bg-green-50 px-1.5 py-0.5 rounded-full">✅ Confirmado</span>
-                                ) : (
-                                  <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-full">⏳ Pendiente</span>
-                                )}
+                        <div className="space-y-4 py-4">
+                          {Object.entries(lugares).map(([lugar, lineas]) => {
+                            const conf = confPorTienda.get(lugar);
+                            return (
+                              <div key={lugar}>
+                                <div className="flex items-center gap-2 px-6 mb-2">
+                                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{lugar}</p>
+                                  {conf ? (
+                                    <span className="text-[10px] font-semibold text-green-700 bg-green-50 px-1.5 py-0.5 rounded-full">✅ Confirmado {formatearFecha(conf.fecha)}</span>
+                                  ) : (
+                                    <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-full">⏳ Pendiente</span>
+                                  )}
+                                </div>
+                                <table className="w-full">
+                                  <thead>
+                                    <tr className="bg-gray-50">
+                                      <th className="text-left text-xs text-gray-400 font-medium px-6 py-2">Producto</th>
+                                      <th className="text-center text-xs text-gray-400 font-medium px-3 py-2">Solicitado</th>
+                                      <th className="text-center text-xs text-gray-400 font-medium px-3 py-2">Recibido</th>
+                                      <th className="text-center text-xs text-gray-400 font-medium px-3 py-2">Estado</th>
+                                      <th className="text-center text-xs text-gray-400 font-medium px-3 py-2 pr-6">Foto</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {lineas.map((l, i) => {
+                                      const recibido = l.cantidad_recibida;
+                                      const completo   = recibido !== null && recibido >= l.cantidad_solicitada;
+                                      const parcial    = recibido !== null && recibido > 0 && recibido < l.cantidad_solicitada;
+                                      const sinRecibir = recibido === null;
+                                      return (
+                                        <tr key={i} className="border-t border-gray-50">
+                                          <td className="px-6 py-2.5 text-sm text-gray-900">{l.nombre_producto}</td>
+                                          <td className="px-3 py-2.5 text-center text-sm text-gray-500">{l.cantidad_solicitada}</td>
+                                          <td className="px-3 py-2.5 text-center">
+                                            {!sinRecibir ? (
+                                              <p className={`text-sm font-medium ${completo ? 'text-green-700' : parcial ? 'text-amber-600' : 'text-red-600'}`}>{recibido}</p>
+                                            ) : (
+                                              <span className="text-gray-300 text-sm">—</span>
+                                            )}
+                                          </td>
+                                          <td className="px-3 py-2.5 text-center text-sm">
+                                            {sinRecibir ? '⏳' : completo ? '✅' : '⚠️ Parcial'}
+                                          </td>
+                                          <td className="px-3 py-2.5 pr-6 text-center">
+                                            {conf?.url_foto ? (
+                                              <button onClick={() => setFotoAmpliada(conf.url_foto.replace('&sz=w200', '&sz=w1200'))}>
+                                                <img src={conf.url_foto} alt={`Foto devolución ${lugar}`}
+                                                  className="w-10 h-10 object-cover rounded-lg hover:scale-110 transition-transform border border-gray-100 mx-auto" />
+                                              </button>
+                                            ) : (
+                                              <span className="text-gray-200">🖼</span>
+                                            )}
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
                               </div>
-                              <div className="space-y-1">
-                                {lineas.map((l, i) => (
-                                  <div key={i} className="flex justify-between text-sm">
-                                    <span className="text-gray-700">{l.nombre_producto}</span>
-                                    <span className="text-gray-500">× {l.cantidad_solicitada}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       );
                     })()}
 
-                    {/* Info de cada confirmación de tienda, con su foto */}
+                    {/* Resumen de cada confirmación de tienda (responsable, observaciones) */}
                     {d.confirmaciones.length > 0 && (
                       <div className="border-t border-green-100">
                         {d.confirmaciones.map((c, i) => (
-                          <div key={i} className="px-6 py-3 bg-green-50 border-b border-green-100 last:border-b-0 flex items-center justify-between">
+                          <div key={i} className="px-6 py-3 bg-green-50 border-b border-green-100 last:border-b-0">
                             <p className="text-xs text-green-700">
                               ✅ {c.nombre_lugar} · Confirmada el {formatearFecha(c.fecha)} por {c.recibido_por}
                               {c.observaciones && ` · ${c.observaciones}`}
                             </p>
-                            {c.url_foto && (
-                              <button onClick={() => setFotoAmpliada(c.url_foto.replace('&sz=w200', '&sz=w1200'))}>
-                                <img
-                                  src={c.url_foto}
-                                  alt={`Foto devolución ${c.nombre_lugar}`}
-                                  className="w-10 h-10 object-cover rounded-lg hover:scale-110 transition-transform border border-green-200 ml-3"
-                                />
-                              </button>
-                            )}
                           </div>
                         ))}
                       </div>
